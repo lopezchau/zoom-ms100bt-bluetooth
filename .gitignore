@@ -19,3 +19,7 @@ staging/
 __pycache__/
 .build/
 .swiftpm/
+
+# Release artifacts and per-architecture builds
+dist/
+.build-*/

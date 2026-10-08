@@ -37,17 +37,32 @@ Things you should know:
 - **After an All Initialize the pedal forgets its pairing.** Remove “ZOOM MS-100BT” in *System Settings → Bluetooth* and connect again.
 - The MS-100BT is the same platform as the MS-50G: 167 of the MS-50G's 173 effects are byte-identical to the MS-100BT's.
 
+## Download
+
+Get **MS-100BT-Manager-x.y.z-macOS.zip** from the [Releases page](https://github.com/lopezchau/zoom-ms100bt-bluetooth/releases/latest),
+unzip it and move *MS-100BT Manager* to Applications. It is a universal app (Apple Silicon and Intel), macOS 13 or later.
+
+The app is not notarized by Apple (that needs a paid developer account), so the first launch is blocked by Gatekeeper:
+right-click the app → **Open** → **Open**. On recent macOS versions, open it once, then go to *System Settings → Privacy & Security* and
+click **Open Anyway**. Or run this command once:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/MS-100BT Manager.app"
+```
+
 ## Requirements
 
 - macOS 13 or later, Apple Silicon or Intel
-- Xcode Command Line Tools (`xcode-select --install`) to build
+- To build from source: Xcode Command Line Tools (`xcode-select --install`)
 - A ZOOM MS-100BT. Use the AC adapter during writes: the pedal refuses to write when the batteries are low.
 
-## Build and run
+## Build from source
 
 ```bash
 scripts/build-app.sh
 ```
+
+`scripts/package-release.sh 0.2.0` builds the universal app and the release zip in `dist/`.
 
 ```bash
 open "build/MS-100BT Manager.app"

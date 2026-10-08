@@ -4,10 +4,23 @@
 # Bluetooth usage description that macOS requires; without it the process is killed.
 set -e
 cd "$(dirname "$0")/.."
+# UNIVERSAL=1 builds arm64 + x86_64 and merges them with lipo (used for GitHub releases).
 CONFIG=${CONFIG:-release}
-swift build -c "$CONFIG"
-BIN=$(swift build -c "$CONFIG" --show-bin-path)
+VERSION=${VERSION:-0.2.0}
 mkdir -p build
+if [[ "$UNIVERSAL" == 1 ]]; then
+  for arch in arm64 x86_64; do
+    swift build -c "$CONFIG" --triple $arch-apple-macosx13.0 --scratch-path .build-$arch
+  done
+  BIN=build/universal
+  mkdir -p "$BIN"
+  for exe in MS100BTManager ms100bt; do
+    lipo -create .build-arm64/$CONFIG/$exe .build-x86_64/$CONFIG/$exe -output "$BIN/$exe"
+  done
+else
+  swift build -c "$CONFIG"
+  BIN=$(swift build -c "$CONFIG" --show-bin-path)
+fi
 
 plist() { # $1 = bundle id, $2 = name, $3 = executable, $4 = extra keys
 cat <<PLIST
@@ -19,7 +32,7 @@ cat <<PLIST
   <key>CFBundleDisplayName</key><string>$2</string>
   <key>CFBundleExecutable</key><string>$3</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSBluetoothAlwaysUsageDescription</key><string>Connects to the ZOOM MS-100BT pedal to read and install effects.</string>
