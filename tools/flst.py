@@ -9,7 +9,7 @@ El archivo tiene un tamaño fijo (4108 bytes en el MS-100BT), con ceros al final
 
 Uso:
   python3 -I tools/flst.py listar FLST_SEQ.ZDT
-  python3 -I tools/flst.py agregar FLST_SEQ.ZDT SALIDA.ZDT NOMBRE.ZDL CATEGORIA_HEX
+  python3 -I tools/flst.py agregar FLST_SEQ.ZDT SALIDA.ZDT NOMBRE.ZDL CATEGORIA_HEX [NOMBRE CAT ...]
   python3 -I tools/flst.py quitar  FLST_SEQ.ZDT SALIDA.ZDT NOMBRE.ZDL
 """
 import struct
@@ -70,10 +70,15 @@ def main():
     dst, name = sys.argv[3], sys.argv[4]
     all_names = [n for _, ns in cats for n in ns]
     if cmd == "agregar":
-        cat = int(sys.argv[5], 16)
-        assert name not in all_names, f"{name} ya está en el índice"
-        idx = [c for c, _ in cats].index(cat)
-        cats[idx][1].append(name)
+        # admite varios pares: NOMBRE CAT [NOMBRE CAT ...]
+        pairs = sys.argv[4:]
+        assert len(pairs) % 2 == 0, "faltan categorías"
+        for name, c in zip(pairs[0::2], pairs[1::2]):
+            assert name not in all_names, f"{name} ya está en el índice"
+            idx = [cc for cc, _ in cats].index(int(c, 16))
+            cats[idx][1].append(name)
+            all_names.append(name)
+        name = " ".join(pairs[0::2])
     elif cmd == "quitar":
         assert name in all_names, f"{name} no está en el índice"
         for _, ns in cats:

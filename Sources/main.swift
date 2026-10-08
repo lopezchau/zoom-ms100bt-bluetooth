@@ -156,6 +156,41 @@ guard let device = target else {
 }
 log("Objetivo: \(device.name ?? "?") [\(device.addressString ?? "?")]")
 
+// 2b. (Opcional, --pair) Emparejamiento explícito, necesario tras un All Initialize del pedal.
+final class Pairer: NSObject, IOBluetoothDevicePairDelegate {
+    var done = false
+    var result: IOReturn = 0
+    func devicePairingStarted(_ sender: Any!) { log("Emparejamiento iniciado") }
+    func devicePairingConnecting(_ sender: Any!) { log("Emparejamiento: conectando…") }
+    func devicePairingPINCodeRequest(_ sender: Any!) {
+        // Emparejamiento heredado: los pedales ZOOM usan el PIN por defecto 0000
+        log("El pedal pide un PIN; se responde 0000")
+        var pin = BluetoothPINCode()
+        withUnsafeMutableBytes(of: &pin.data) { $0.copyBytes(from: Array("0000".utf8)) }
+        (sender as? IOBluetoothDevicePair)?.replyPINCode(4, pinCode: &pin)
+    }
+    func devicePairingUserConfirmationRequest(_ sender: Any!, numericValue: BluetoothNumericValue) {
+        log("Confirmación numérica \(numericValue); se acepta")
+        (sender as? IOBluetoothDevicePair)?.replyUserConfirmation(true)
+    }
+    func devicePairingFinished(_ sender: Any!, error: IOReturn) {
+        log("Emparejamiento terminado (IOReturn \(error))")
+        result = error; done = true
+    }
+}
+
+if args.contains("--pair") {
+    let pairer = Pairer()
+    if let pair = IOBluetoothDevicePair(device: device) {
+        pair.delegate = pairer
+        let r = pair.start()
+        log("Iniciando emparejamiento (IOReturn \(r))")
+        if r == kIOReturnSuccess { spin(60) { pairer.done } }
+        if !pairer.done { log("El emparejamiento no terminó en 60 s") }
+        spin(2.0)
+    }
+}
+
 // 3. Consulta SDP para encontrar el canal del Serial Port Profile
 var channelID: BluetoothRFCOMMChannelID = 0
 if let c = arg("--channel"), let n = UInt8(c) {
@@ -553,6 +588,37 @@ func writeFile(_ name: String, _ data: [UInt8], chunk: Int, dryRun: Bool) throws
     log("   respuesta: \(rc.map { hex(Data($0)) }.joined(separator: " / "))")
     _ = transact([0x60, 0x09], timeout: 2) { _ in true }
     closed = true
+}
+
+// --write-many LISTA: cada línea "RUTA_LOCAL [NOMBRE_EN_PEDAL]". Escribe y verifica uno por uno;
+// se detiene en el primer error. Admite --dry-run / --confirm-write igual que --write.
+if identityOK, let listPath = arg("--write-many") {
+    let dryRun = !args.contains("--confirm-write")
+    let chunk = Int(arg("--chunk") ?? "4096") ?? 4096
+    let lines = ((try? String(contentsOfFile: listPath, encoding: .utf8)) ?? "")
+        .split(separator: "\n").map { $0.split(separator: " ").map(String.init) }.filter { !$0.isEmpty && !$0[0].hasPrefix("#") }
+    log("Lote: \(lines.count) archivo(s)\(dryRun ? " (SIMULACIÓN)" : "")")
+    var ok = 0
+    for (i, l) in lines.enumerated() {
+        let src = l[0], name = l.count > 1 ? l[1] : (l[0] as NSString).lastPathComponent
+        do {
+            let data = [UInt8](try Data(contentsOf: URL(fileURLWithPath: src)))
+            quiet = true
+            try writeFile(name, data, chunk: chunk, dryRun: dryRun)
+            if !dryRun {
+                let back = try readFile(name, expected: data.count, chunk: 4096)
+                guard back == data else { throw WriteError.pedalError("verificación distinta en \(name)") }
+            }
+            quiet = false
+            ok += 1
+            log(String(format: "[%d/%d] %@ %@ (%d bytes, CRC32 %08x)", i + 1, lines.count, dryRun ? "SIMULADO" : "VERIFICADO", name, data.count, crc32(data)))
+        } catch {
+            quiet = false
+            log("[\(i + 1)/\(lines.count)] ERROR en \(name): \(error). Se detiene el lote.")
+            break
+        }
+    }
+    log("Lote terminado: \(ok)/\(lines.count) correctos")
 }
 
 if identityOK, let src = arg("--write") {

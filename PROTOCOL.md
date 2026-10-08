@@ -248,3 +248,15 @@ Es una hipótesis razonable; queda por confirmar.
   `Bypass, Dynamics, Filter/EQ, Drive, BassDrive, BassPreAmp, AgModeling, AmpModeling, BassAmpModeling,
   Modulation, SFX, Delay, Reverb, TwinFx, PedalFx, Mic` (más varias `ReserveN`).
   **El firmware del MS-100BT ya conoce las categorías de bajo** (BassDrive, BassPreAmp, BassAmpModeling). Es un buen indicio para los grupos B y C.
+
+## All Initialize y Bluetooth (2026-10-08)
+
+- El **All Initialize** del pedal (mantener la perilla 1 al encender y luego pisar el footswitch) restauró los patches de fábrica.
+  **No borró los efectos añadidos ni modificó `FLST_SEQ.ZDT`**: Z_SYN siguió instalado.
+- Después del All Initialize, el canal RFCOMM devolvía `kIOReturnError` / `kIOReturnTimeout`: **el pedal olvidó el emparejamiento**.
+  La solución fue "Olvidar este dispositivo" en macOS y volver a conectar con el pedal en PAIRING. El canal MIDI siguió siendo el 2.
+  (El SDP puede listar los dos servicios en otro orden; el registro con UUID 0x1101 sigue apuntando al canal 2.)
+
+## Instalación por lotes (grupo A, tanda 1)
+`--write-many LISTA` escribe y verifica (relectura completa) cada archivo y se detiene en el primer error.
+Tanda 1: 14 efectos del MS-60B (232 KB), todos verificados, más el índice (CRC32 17652ffb).
