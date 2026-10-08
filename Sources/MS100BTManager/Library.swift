@@ -11,7 +11,7 @@ struct LibraryItem: Identifiable, Hashable {
             switch self {
             case .installed: return "On pedal"
             case .low: return "Low risk"
-            case .community: return "Community — untested on MS-100BT"
+            case .community: return "Community — test before relying on it"
             case .tooBig: return "Larger than 32 KB"
             case .unsafeName: return "Name longer than 8.3"
             case .untestedCategory: return "Untested category"

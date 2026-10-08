@@ -296,3 +296,10 @@ State after batch 2: 24 group A effects installed and in the index. Not installe
 
 The owner used the GUI to remove two amp models and install Splitter and Z-Tron (MS-60B) through *Apply*:
 the plan (deletes, writes with read-back verification, new effect index) ran end to end and both effects work on the pedal.
+
+### First community custom effect on an MS-100BT (2026-10-08)
+
+**WaveFold** from [matujuice/zoom-ms-zdl-effects-pack](https://github.com/matujuice/zoom-ms-zdl-effects-pack)
+(9,342 B, standard 56-byte header, TI C6000 build from the community linker) was installed with MS-100BT Manager
+and **works on the pedal** (firmware 1.30). This is the first custom (non-ZOOM) DSP effect confirmed on an MS-100BT;
+the themanro README lists the MS-100BT as "not supported", but this shows ZDLs from that toolchain can load.

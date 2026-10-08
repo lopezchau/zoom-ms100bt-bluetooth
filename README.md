@@ -28,7 +28,7 @@ the pedal's Bluetooth protocol and provides:
 | Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
 | Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ⏳ untested |
-| Community custom effects (TI C6000 DSP) | ⏳ untested on MS-100BT |
+| Community custom effects (TI C6000 DSP): **WaveFold** (matujuice) works | ✅ first one confirmed |
 
 Things you should know:
 
@@ -72,7 +72,7 @@ Every effect shows its display name, knobs, category, origin and a risk label:
 | Label | Meaning |
 |---|---|
 | Low risk | Standard header, no missing dependencies, a category the MS-100BT is known to show |
-| Community | Custom effect; none has been confirmed on an MS-100BT yet |
+| Community | Custom effect; only WaveFold has been confirmed on an MS-100BT so far |
 | Untested category / header | Bass categories, or the `BCAB` header used by bass amps; never tried on an MS-100BT |
 | Larger than 32 KB | Above the largest custom size known to load (on an MS-70CDR) |
 | Needs expression pedal | Pedal-operated effects; the MS-100BT has no expression pedal (hidden) |
@@ -133,7 +133,7 @@ Building needs TI's C6000 compiler (CGT 8.5.0.LTS, shipped with Code Composer St
 This is why the app downloads them from their authors instead of bundling them.
 
 To try your own build, put the `.ZDL` (8.3 file name) in the app's *custom-effects* folder (Library menu), then drag it onto the pedal.
-**Please report which custom effects work on an MS-100BT**; nobody has confirmed one yet.
+**WaveFold** from the matujuice pack is confirmed working on an MS-100BT. **Please report which other custom effects work** (open an issue).
 
 ## Documentation
 
