@@ -15,7 +15,9 @@ que está abandonada.
 | Listado de archivos, espacio libre e info del sistema de archivos | ✅ |
 | Respaldo completo de los archivos del pedal (lectura verificada con CRC) | ✅ |
 | Escritura de un efecto (`.ZDL`) con verificación por relectura | ✅ |
-| Registrar efectos en `FLST_SEQ.ZDT` | ⏳ siguiente |
+| Registrar efectos en `FLST_SEQ.ZDT` | ✅ |
+| **Primer efecto nuevo instalado: Z_SYN (MS-60B) funcionando en el MS-100BT** | ✅ |
+| Instalador por lotes (varios efectos + índice) | ⏳ siguiente |
 | Efectos personalizados (DSP TI C6000) | ⏳ |
 | Interfaz gráfica | ⏳ |
 

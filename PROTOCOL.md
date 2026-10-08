@@ -233,4 +233,5 @@ Es una hipótesis razonable; queda por confirmar.
    El borrado previo respondió `60 03 7A 7F 7F 7F 0F` (0xFFFFFFFA = no existe), lo cual es inofensivo.
 2. Se escribió `FLST_SEQ.ZDT` con `Z_SYN.ZDL` añadido al final de la categoría 07 y se verificó con CRC32 b832cbf8.
    - **El handle no siempre es 00×5:** al abrir FLST_SEQ.ZDT el pedal devolvió `54 26 46 28 0E`. Siempre hay que usar el handle que devuelve "abrir".
-3. Resultado en el pedal: pendiente de confirmar (tras reiniciar, Z_SYN debe aparecer en SFX).
+3. **Resultado: confirmado por el usuario.** Tras reiniciar, Z_SYN aparece en la categoría SFX y funciona.
+   Es el primer efecto de otro pedal (MS-60B) instalado en un MS-100BT desde una Mac, sin StompShare.
