@@ -40,7 +40,8 @@ struct LibraryItem: Identifiable, Hashable {
         if info.category == 0x0B { return .needsExpressionPedal }
         if info.extendedTag == "BCAB" { return .untestedHeader }
         if !EffectCategory.confirmed.contains(info.category) && !isSharedLibrary { return .untestedCategory }
-        if info.size > ZDLInfo.sizeLimit { return .tooBig }
+        // The 32 KB limit was measured for community-built effects; stock effects up to 42 KB (DualRev) work.
+        if isCommunity && info.size > ZDLInfo.sizeLimit { return .tooBig }
         if isCommunity { return .community }
         return .low
     }

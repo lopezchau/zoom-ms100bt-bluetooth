@@ -328,3 +328,17 @@ Conclusions:
 - Bass categories therefore cannot be made visible on the MS-100BT by editing the index. Patching the header
   (byte 60) was not tried; the effect's internal type (`BASSPREAMP`) and its `CMN_BASS` code path would still differ
   from a guitar drive, so it is likely to fail the same way.
+
+### More effects confirmed (2026-10-08)
+
+Installed with `ms100bt apply` (each file read back and compared; index CRC32 4ab55c82) and confirmed working by the owner:
+
+| Effect | File | Size | Category | Source |
+|---|---|---|---|---|
+| St Bs GEQ | `ST_B_GEQ.ZDL` | 13,067 B | 02 Filter/EQ | MS-60B |
+| DualRev | `DUAL_REV.ZDL` | 42,339 B | 09 Reverb | MS-50G v3 / MS-70CDR (largest effect ever on this pedal; stock MS-100BT maximum was 35 KB) |
+| DubSiren | `DubSiren.ZDL` | 18,910 B | 08 Delay | Community, matujuice (effect ID 485) |
+| Shatter | `Shatter.ZDL` | 5,770 B | 08 Delay | Community, themanro (effect ID 452) |
+
+Shatter comes from the themanro toolchain, whose README lists the MS-100BT as "not supported": it loads and works.
+So far three community effects from two authors work on the MS-100BT (WaveFold, DubSiren, Shatter).

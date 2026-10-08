@@ -2,11 +2,21 @@
 
 **Install new effects on a ZOOM MS-100BT MultiStomp from a Mac — over Bluetooth, with drag and drop.**
 
+| | |
+|---|---|
+| **Macs** | Apple Silicon (M1/M2/M3/M4…) **and** Intel — one universal app |
+| **macOS** | 13 Ventura or later |
+| **Pedal** | ZOOM MS-100BT, firmware 1.30 |
+| **Download** | [Latest release](https://github.com/lopezchau/zoom-ms100bt-bluetooth/releases/latest) — no compiling needed |
+
+Tested so far on an Apple M1 with macOS 26 (Tahoe). Intel Macs and macOS 13–15 are supported by the build but not yet
+tested on hardware. If you run it on one, please open an issue saying whether it works.
+
 The MS-100BT could only get extra effects through ZOOM's StompShare iOS app, which has been abandoned since 2016,
 and its firmware updater is a 32-bit Intel/PowerPC app that no current Mac can run. This project reverse-engineered
 the pedal's Bluetooth protocol and provides:
 
-- **MS-100BT Manager**, a native macOS app (Apple Silicon and Intel). The left pane is a library of effect files; the
+- **MS-100BT Manager**, a native macOS app (universal: Apple Silicon and Intel, macOS 13+). The left pane is a library of effect files; the
   right pane shows the pedal's effect menu by category. Drag effects in, drag to reorder, remove what you don't use, then *Apply*.
 - **`ms100bt`**, the command-line engine behind the app: identify, read state, back up, apply a change plan.
 - Complete protocol documentation, all verified on real hardware.
@@ -15,7 +25,7 @@ the pedal's Bluetooth protocol and provides:
 
 > Independent project, not affiliated with or endorsed by ZOOM Corporation. Use at your own risk.
 
-## What has been verified on a real MS-100BT (firmware 1.30, Apple M1, macOS 26)
+## What has been verified on a real MS-100BT (firmware 1.30)
 
 | | |
 |---|---|
@@ -24,11 +34,12 @@ the pedal's Bluetooth protocol and provides:
 | Full backup of all 175 stock files, CRC-checked | ✅ |
 | Writing files, each one read back and compared | ✅ |
 | Editing the effect menu (`FLST_SEQ.ZDT`) | ✅ |
-| Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, Splitter, Z-Tron, …: 27 installed) | ✅ |
+| Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, Splitter, Z-Tron, St Bs GEQ, …: 28 installed) | ✅ |
+| **DualRev** (MS-50G v3 / MS-70CDR reverb, 42 KB — larger than any stock MS-100BT effect) | ✅ |
 | Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
 | Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ❌ installed but **not shown** by the MS-100BT menu; listing one under Drive **froze the pedal** |
-| Community custom effects (TI C6000 DSP): **WaveFold** (matujuice) works | ✅ first one confirmed |
+| Community custom effects (TI C6000 DSP): **WaveFold** and **DubSiren** (matujuice), **Shatter** (themanro) | ✅ working |
 
 Things you should know:
 
@@ -87,10 +98,10 @@ Every effect shows its display name, knobs, category, origin and a risk label:
 | Label | Meaning |
 |---|---|
 | Low risk | Standard header, no missing dependencies, a category the MS-100BT is known to show |
-| Community | Custom effect; only WaveFold has been confirmed on an MS-100BT so far |
+| Community | Custom effect; WaveFold, DubSiren and Shatter are confirmed on an MS-100BT, others are not tested yet |
 | Not shown by the MS-100BT menu | Bass categories: the effect is stored but the menu (DYN/FLTR, OD/DIST, AMP, MOD/SFX, DLY/REV) never lists it |
 | Untested header | The `BCAB` header used by bass amps; never tried on an MS-100BT |
-| Larger than 32 KB | Above the largest custom size known to load (on an MS-70CDR) |
+| Larger than 32 KB | Custom effect above the largest custom size known to load (stock effects up to 42 KB work) |
 | Needs expression pedal | Pedal-operated effects; the MS-100BT has no expression pedal (hidden) |
 | Name longer than 8.3 | Blocked: long file names have frozen pedals at boot |
 
@@ -136,7 +147,7 @@ The Python tools `tools/zdlinfo.py` and `tools/flst.py` do the same, without bui
 The MS-100BT runs effects on a TI TMS320C674x DSP, the same family as the MS-50G/60B/70CDR. Community projects already
 build custom effects for it:
 
-- [themanro/ZoomMultistompZDL](https://github.com/themanro/ZoomMultistompZDL): toolchain and 20+ effects (MS-70CDR).
+- [themanro/ZoomMultistompZDL](https://github.com/themanro/ZoomMultistompZDL): toolchain and 20+ effects (MS-70CDR; Shatter confirmed on MS-100BT).
   Read its [SAFE-DSP-RULES](https://github.com/themanro/ZoomMultistompZDL/blob/main/docs/SAFE-DSP-RULES.md) and LOADER-SAFETY docs.
 - [matujuice/zoom-ms-zdl-effects-pack](https://github.com/matujuice/zoom-ms-zdl-effects-pack): 12 effects tested on an
   MS-60B running MS-50G firmware, the closest known setup to the MS-100BT.
@@ -149,7 +160,7 @@ Building needs TI's C6000 compiler (CGT 8.5.0.LTS, shipped with Code Composer St
 This is why the app downloads them from their authors instead of bundling them.
 
 To try your own build, put the `.ZDL` (8.3 file name) in the app's *custom-effects* folder (Library menu), then drag it onto the pedal.
-**WaveFold** from the matujuice pack is confirmed working on an MS-100BT. **Please report which other custom effects work** (open an issue).
+Confirmed working on an MS-100BT: **WaveFold** and **DubSiren** (matujuice) and **Shatter** (themanro — whose README lists the MS-100BT as unsupported; it does work). **Please report which other custom effects work** (open an issue).
 
 ## Documentation
 
