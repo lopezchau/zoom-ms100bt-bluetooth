@@ -291,3 +291,8 @@ Batch 2: 10 effects were written. The 11th (SPLITTER.ZDL) was **opened** (handle
 - Open item at the time (older prototype): check the file count before writing a new file.
 
 State after batch 2: 24 group A effects installed and in the index. Not installed for lack of free entries: SPLITTER, ST_B_GEQ, Z_TRON, DUAL_REV.
+
+### MS-100BT Manager on hardware (2026-10-08)
+
+The owner used the GUI to remove two amp models and install Splitter and Z-Tron (MS-60B) through *Apply*:
+the plan (deletes, writes with read-back verification, new effect index) ran end to end and both effects work on the pedal.

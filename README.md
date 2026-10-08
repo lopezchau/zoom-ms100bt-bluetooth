@@ -24,7 +24,8 @@ the pedal's Bluetooth protocol and provides:
 | Full backup of all 175 stock files, CRC-checked | ✅ |
 | Writing files, each one read back and compared | ✅ |
 | Editing the effect menu (`FLST_SEQ.ZDT`) | ✅ |
-| Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, …: 25 installed) | ✅ |
+| Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, Splitter, Z-Tron, …: 27 installed) | ✅ |
+| Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
 | Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ⏳ untested |
 | Community custom effects (TI C6000 DSP) | ⏳ untested on MS-100BT |
