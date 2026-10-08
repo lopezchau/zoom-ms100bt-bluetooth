@@ -235,3 +235,16 @@ Es una hipótesis razonable; queda por confirmar.
    - **El handle no siempre es 00×5:** al abrir FLST_SEQ.ZDT el pedal devolvió `54 26 46 28 0E`. Siempre hay que usar el handle que devuelve "abrir".
 3. **Resultado: confirmado por el usuario.** Tras reiniciar, Z_SYN aparece en la categoría SFX y funciona.
    Es el primer efecto de otro pedal (MS-60B) instalado en un MS-100BT desde una Mac, sin StompShare.
+
+## Firmware 1.30 (`MAIN.bin`, 496 212 B), analizado sin enviarlo al pedal
+
+- **No está comprimido:** es una imagen de carga TI con cabecera `TIPA` y registros `<tipo> "YSX" <dir u32> <long u32> <datos>`.
+  El tipo 01 es una sección y el tipo 06 el punto de entrada (`0xC0145400`). La entropía alta (~6,8) se debe al código denso del C674x.
+- Secciones: L2 interna (`0x11817000`…), código en DDR (`0xC00E1640`, 427 KB) y datos (`0xC0149AA0`, 40 KB).
+  Contiene TI SYS/BIOS, una pila Bluetooth con perfiles SPP e iAP (`/dev/spp/`, `siAP`, `cSerial`) y las fuentes de la pantalla.
+- El actualizador 1.30 graba **solo el programa principal** (región 0xA0000). No incluye arranque, presets ni sistema de archivos.
+- **No contiene nombres de patches.** Los patches viven en otra zona de memoria, fuera del sistema de archivos y fuera de esta actualización.
+- **Tabla de nombres de categoría** (offset 474 765):
+  `Bypass, Dynamics, Filter/EQ, Drive, BassDrive, BassPreAmp, AgModeling, AmpModeling, BassAmpModeling,
+  Modulation, SFX, Delay, Reverb, TwinFx, PedalFx, Mic` (más varias `ReserveN`).
+  **El firmware del MS-100BT ya conoce las categorías de bajo** (BassDrive, BassPreAmp, BassAmpModeling). Es un buen indicio para los grupos B y C.
