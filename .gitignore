@@ -1,0 +1,13 @@
+# Archivos de Zoom (efectos y firmware): nunca subir
+backup/
+*.ZDL
+*.ZDT
+*.DAT
+*.bin
+
+# Registros de sesiones (incluyen la dirección Bluetooth del pedal)
+logs/
+
+# Compilados
+build/
+.DS_Store
