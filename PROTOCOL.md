@@ -185,6 +185,23 @@ TX 60 09               → RX 60 05 00            fin de sesión de archivo
 - **Respaldo completo** (2026-10-08): los 175 archivos en `backup/2026-10-08-completo/` (3,2 MB, 398 s), con
   `MANIFEST.txt` (nombre, tamaño y CRC32). Todos los tamaños coinciden con el listado y todos los .ZDL tienen cabecera válida.
 
+### Escritura de archivos (confirmado 2026-10-08)
+
+Se reescribió `LINESEL.ZDL` (9217 bytes) con su mismo contenido, en modo normal y sin `60 06` / `61 05` / `01`:
+```
+TX 60 24 "LINESEL.ZDL" 00                        → RX 60 03 00×5         borrar (OK)
+TX 60 20 01 00×9 "LINESEL.ZDL" 00                → RX 60 04 20 … handle 00×5
+TX 60 05 00                                      → RX 60 03 00×5
+por bloque (4096, 4096, 1025):
+  TX 60 23 <handle 00×5> <tam 5> <datos 8→7> <CRC 5>   → RX 60 04 23 00 00 04 00 <tam 5> …  (eco del tamaño)
+  TX 60 05 00                                    → RX 60 03 00×5
+TX 60 21 <handle>                                → RX 60 03 00×5         cerrar
+TX 60 09                                         → RX 60 05 00
+```
+- CRC del bloque = `zlib.crc32(bloque) ^ 0xFFFFFFFF`, igual que en la lectura.
+- Bloques de 4096 bytes (`maxFFSWriteSize`), es decir, 4704 bytes de SysEx enviados en trozos del MTU (503).
+- Una nueva lectura dio un archivo **idéntico** (CRC32 0x80b78c37). La escritura completa más la verificación tardaron unos 5 s.
+
 ## `FLST_SEQ.ZDT`: orden y categorías de la lista de efectos
 
 Archivo de 4108 bytes formado por **registros de 13 bytes** (nombre 8.3 de hasta 12 caracteres + NUL, con relleno de ceros):

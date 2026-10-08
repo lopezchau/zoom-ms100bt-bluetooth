@@ -200,9 +200,19 @@ log("Conectado. MTU=\(ch.getMTU())")
 spin(1.0)
 
 func send(_ bytes: [UInt8]) {
-    var b = bytes
-    let r = ch.writeSync(&b, length: UInt16(b.count))
-    if !quiet || r != kIOReturnSuccess { log("TX: \(hex(Data(bytes)))  (IOReturn \(r))") }
+    // Trocear según el MTU, como SPPCommunication.sendAsync del actualizador
+    let mtu = max(Int(ch.getMTU()), 16)
+    var r: IOReturn = kIOReturnSuccess
+    var off = 0
+    while off < bytes.count && r == kIOReturnSuccess {
+        var piece = Array(bytes[off..<min(off + mtu, bytes.count)])
+        r = ch.writeSync(&piece, length: UInt16(piece.count))
+        off += piece.count
+    }
+    if !quiet || r != kIOReturnSuccess {
+        let shown = bytes.count > 64 ? "\(hex(Data(bytes.prefix(32)))) … (\(bytes.count) bytes)" : hex(Data(bytes))
+        log("TX: \(shown)  (IOReturn \(r))")
+    }
 }
 
 // 5. Consulta de identidad (la misma que envía el actualizador oficial)
@@ -447,7 +457,122 @@ if identityOK, let backupDir = arg("--backup") {
                targets.count - failed.count, failed.count, failed.joined(separator: " ")))
 }
 
-// 8. Cerrar limpiamente
+// 8. (Opcional) Escritura de un archivo: --write ARCHIVO_LOCAL [--as NOMBRE] (--dry-run | --confirm-write)
+//    Secuencia del actualizador oficial / zoom-zt2: borrar → abrir (01) → ACK → [escribir → ACK]… → cerrar → 60 09.
+//    Nunca usa comandos de firmware. Se niega a tocar PAIR.DAT y FLST_SEQ.ZDT.
+
+/// 8→7 bits: byte de bits altos (bit 6 = 1.er byte) seguido de hasta 7 bytes de 7 bits.
+func pack7(_ d: ArraySlice<UInt8>) -> [UInt8] {
+    var out: [UInt8] = []
+    var i = d.startIndex
+    while i < d.endIndex {
+        let n = min(7, d.endIndex - i)
+        var hi: UInt8 = 0
+        for j in 0..<n where d[i + j] & 0x80 != 0 { hi |= 0x40 >> UInt8(j) }
+        out.append(hi)
+        for j in 0..<n { out.append(d[i + j] & 0x7F) }
+        i += n
+    }
+    return out
+}
+
+func fsName(_ n: String) -> [UInt8] { Array(n.utf8) + [0x00] }
+
+enum WriteError: Error { case refused(String), noReply(String), pedalError(String) }
+
+func describeMsg(_ m: [UInt8]) -> String {
+    m.count > 40 ? "\(hex(Data(m.prefix(24)))) … \(hex(Data(m.suffix(8))))  (\(m.count) bytes)" : hex(Data(m))
+}
+
+func writeFile(_ name: String, _ data: [UInt8], chunk: Int, dryRun: Bool) throws {
+    let protected = ["PAIR.DAT", "FLST_SEQ.ZDT"]
+    guard !protected.contains(name.uppercased()) else { throw WriteError.refused(name) }
+    guard name.utf8.count <= 12 else { throw WriteError.refused("nombre de más de 12 caracteres") }
+    let crcOK: ([UInt8]) -> Bool = { isFs($0, sub: 0x03) && $0.count >= 11 && u35($0, 6) == 0 }
+
+    let unlink: [UInt8] = [0x60, 0x24] + fsName(name)
+    let open: [UInt8] = [0x60, 0x20, 0x01] + [UInt8](repeating: 0, count: 9) + fsName(name)
+    var blocks: [[UInt8]] = []
+    var off = 0
+    while off < data.count {
+        let n = min(chunk, data.count - off)
+        let block = Array(data[off..<(off + n)])
+        let crc = crc32(block) ^ 0xFFFFFFFF
+        blocks.append([0x60, 0x23] + [0, 0, 0, 0, 0] /* handle, se reemplaza */ + u7x5(UInt32(n)) + pack7(block[...]) + u7x5(crc))
+        off += n
+    }
+
+    if dryRun {
+        log("== SIMULACIÓN: no se envía nada al pedal ==")
+        log("Archivo: \(name), \(data.count) bytes, CRC32 \(String(format: "%08x", crc32(data))), \(blocks.count) bloque(s) de hasta \(chunk) bytes")
+        log("1. Borrar:  \(describeMsg([0xF0, 0x52, 0x00, dev] + unlink + [0xF7]))")
+        log("2. Abrir para escritura: \(describeMsg([0xF0, 0x52, 0x00, dev] + open + [0xF7]))")
+        log("   + ACK: F0 52 00 5E 60 05 00 F7")
+        for (i, b) in blocks.enumerated() {
+            log("3.\(i + 1) Escribir: \(describeMsg([0xF0, 0x52, 0x00, dev] + b + [0xF7]))  + ACK")
+        }
+        log("4. Cerrar:  F0 52 00 5E 60 21 <handle> F7  y luego  F0 52 00 5E 60 09 F7")
+        return
+    }
+
+    log("1. Borrar \(name)")
+    let r0 = transact(unlink) { isFs($0, sub: 0x03) }
+    log("   respuesta: \(r0.map { hex(Data($0)) }.joined(separator: " / "))")
+
+    log("2. Abrir \(name) para escritura")
+    let r1 = transact(open) { isFs($0, sub: 0x04, fn: 0x20) || isFs($0, sub: 0x03) }
+    guard let om = r1.first(where: { isFs($0, sub: 0x04, fn: 0x20) && $0.count > 16 }) else {
+        throw WriteError.noReply("abrir: \(r1.map { hex(Data($0)) }.joined(separator: " / "))")
+    }
+    let handle = Array(om[11..<16])
+    log("   handle: \(hex(Data(handle)))")
+    guard ack() else { throw WriteError.noReply("ACK tras abrir") }
+
+    var closed = false
+    defer {
+        if !closed {
+            log("Cerrando el archivo tras un error")
+            _ = transact([0x60, 0x21] + handle, timeout: 3, until: isAckReply)
+            _ = transact([0x60, 0x09], timeout: 2) { _ in true }
+        }
+    }
+    for (i, var b) in blocks.enumerated() {
+        b.replaceSubrange(2..<7, with: handle)
+        log("3.\(i + 1) Escribir bloque (\(b.count + 5) bytes en SysEx)")
+        let rw = transact(b, timeout: 6) { isFs($0, sub: 0x04, fn: 0x23) || isFs($0, sub: 0x03) || isFs($0, sub: 0x05) }
+        log("   respuesta: \(rw.map { describeMsg($0) }.joined(separator: " / "))")
+        if rw.isEmpty { throw WriteError.noReply("bloque \(i + 1)") }
+        if let e = rw.first(where: { isFs($0, sub: 0x03) && !crcOK($0) }) { throw WriteError.pedalError(hex(Data(e))) }
+        let ra = transact([0x60, 0x05, 0x00]) { isAckReply($0) || isFs($0, sub: 0x04, fn: 0x23) }
+        log("   ACK: \(ra.map { describeMsg($0) }.joined(separator: " / "))")
+        if let e = ra.first(where: { isFs($0, sub: 0x03) && !crcOK($0) }) { throw WriteError.pedalError(hex(Data(e))) }
+    }
+    log("4. Cerrar")
+    let rc = transact([0x60, 0x21] + handle, timeout: 4, until: isAckReply)
+    log("   respuesta: \(rc.map { hex(Data($0)) }.joined(separator: " / "))")
+    _ = transact([0x60, 0x09], timeout: 2) { _ in true }
+    closed = true
+}
+
+if identityOK, let src = arg("--write") {
+    let name = arg("--as") ?? (src as NSString).lastPathComponent
+    let chunk = Int(arg("--chunk") ?? "4096") ?? 4096
+    let dryRun = !args.contains("--confirm-write")
+    do {
+        let data = [UInt8](try Data(contentsOf: URL(fileURLWithPath: src)))
+        try writeFile(name, data, chunk: chunk, dryRun: dryRun)
+        if !dryRun {
+            log("5. Verificación: volver a leer \(name)")
+            let back = try readFile(name, expected: data.count, chunk: 4096)
+            log(back == data ? "VERIFICADO: el archivo en el pedal es idéntico (CRC32 \(String(format: "%08x", crc32(back))))"
+                             : "¡DIFERENCIA! leído \(back.count) bytes, CRC32 \(String(format: "%08x", crc32(back)))")
+        }
+    } catch {
+        log("ERROR en escritura: \(error)")
+    }
+}
+
+// 9. Cerrar limpiamente
 ch.close()
 device.closeConnection()
 spin(1.0)

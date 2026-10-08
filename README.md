@@ -14,8 +14,8 @@ que está abandonada.
 | Identificación del pedal por Bluetooth desde un M1 | ✅ |
 | Listado de archivos, espacio libre e info del sistema de archivos | ✅ |
 | Respaldo completo de los archivos del pedal (lectura verificada con CRC) | ✅ |
-| Escritura de un efecto (`.ZDL`) | ⏳ siguiente |
-| Registrar efectos en `FLST_SEQ.ZDT` | ⏳ |
+| Escritura de un efecto (`.ZDL`) con verificación por relectura | ✅ |
+| Registrar efectos en `FLST_SEQ.ZDT` | ⏳ siguiente |
 | Efectos personalizados (DSP TI C6000) | ⏳ |
 | Interfaz gráfica | ⏳ |
 
@@ -54,7 +54,14 @@ Opciones:
 - `--channel N`: canal RFCOMM; en el MS-100BT el canal MIDI es el 2
 - `--only NOMBRE`: respaldar un solo archivo
 
-Hasta ahora, la herramienta **solo lee** del pedal. Nunca envía los comandos de borrado o escritura de firmware.
+Escribir un archivo (primero simula; después escribe de verdad y verifica volviendo a leerlo):
+
+```bash
+open -W build/MS100BTProbe.app --args --log "$PWD/logs/w.txt" --write RUTA/ARCHIVO.ZDL --dry-run
+open -W build/MS100BTProbe.app --args --log "$PWD/logs/w.txt" --write RUTA/ARCHIVO.ZDL --confirm-write
+```
+
+La herramienta nunca envía los comandos de borrado o escritura de firmware y se niega a tocar `PAIR.DAT` y `FLST_SEQ.ZDT`.
 
 ## Aviso
 
