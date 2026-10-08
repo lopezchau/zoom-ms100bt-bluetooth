@@ -27,7 +27,7 @@ the pedal's Bluetooth protocol and provides:
 | Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, Splitter, Z-Tron, …: 27 installed) | ✅ |
 | Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
-| Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ❌ installed but **not shown** by the MS-100BT menu |
+| Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ❌ installed but **not shown** by the MS-100BT menu; listing one under Drive **froze the pedal** |
 | Community custom effects (TI C6000 DSP): **WaveFold** (matujuice) works | ✅ first one confirmed |
 
 Things you should know:

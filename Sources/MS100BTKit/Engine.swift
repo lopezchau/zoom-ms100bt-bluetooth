@@ -139,6 +139,18 @@ public final class Engine {
             return bytes
         }
 
+        // An effect listed under a category other than the one in its own header freezes the pedal
+        // when the menu reaches it (found on hardware with an MS-60B bass preamp listed under Drive).
+        if let newIndex, let idx = try? EffectIndex(data: newIndex) {
+            for (name, data) in sources {
+                guard let z = ZDLInfo.parse(fileName: name, data: data), z.category != EffectCategory.sharedLibrary,
+                      let listed = idx.category(of: name) else { continue }
+                guard listed == z.category else {
+                    throw Pedal.PedalError.refused(String(format: "%@ is a category %02X effect but the plan lists it under %02X; this froze an MS-100BT", name, z.category, listed))
+                }
+            }
+        }
+
         let steps = plan.deletes.count + sources.count + (newIndex == nil ? 0 : 1)
         emit(.log("Plan: delete \(plan.deletes.count), write \(sources.count), index \(newIndex == nil ? "unchanged" : "updated"); files after: \(finalCount)/\(Pedal.maxFiles)"))
         if dryRun { emit(.log("Dry run: nothing was sent to the pedal.")); return }

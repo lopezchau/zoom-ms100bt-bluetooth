@@ -312,3 +312,19 @@ which only has five groups — `SELECT CATEGORY` → `DYN/FLTR`, `OD/ DIST`, `AM
 offset ≈ 468 913) — i.e. index categories 01–02, 03, 04, 06–07 and 08–09. The bass names in the firmware's category table
 (BassDrive, BassPreAmp, BassAmpModeling) are shared code with the MS-60B but have no menu group on the MS-100BT.
 Still open: whether a bass effect listed under a guitar category (e.g. 03) would load.
+
+### A bass effect listed under a guitar category freezes the pedal (2026-10-08)
+
+Experiment: the MS-60B **BassDrive** (`BASSDRV.ZDL`, header category 0x0D, `ZDL_BASSPREAMP_BassDrive.out`, needs
+`CMN_BASS.ZDL`) was written and listed in `FLST_SEQ.ZDT` under **Drive (03)** instead of its own category.
+Result: in the effect browser, scrolling past the last Drive effect to the BassDrive entry made the **pedal unresponsive**.
+After a power cycle it booted normally (the effect had not been stored in a patch); `BASSDRV.ZDL` was deleted and the
+previous index restored over Bluetooth (verified, CRC32 16c93da2).
+
+Conclusions:
+- The menu groups effects by the **index** category, but loading an effect whose header/type does not match that
+  category hangs the firmware. **Never list an effect under a category other than its header byte 60.**
+  `ms100bt apply` now refuses such plans, and the GUI always places effects in their own category.
+- Bass categories therefore cannot be made visible on the MS-100BT by editing the index. Patching the header
+  (byte 60) was not tried; the effect's internal type (`BASSPREAMP`) and its `CMN_BASS` code path would still differ
+  from a guitar drive, so it is likely to fail the same way.
