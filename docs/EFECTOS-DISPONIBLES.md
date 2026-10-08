@@ -86,3 +86,32 @@ Grupos de interés:
   Por lo tanto, el firmware 1.30 ya entiende `CABI`.
 - El corpus menciona otra variante, `BCAB` (176 bytes extra), que el MS-100BT no tiene. Los efectos que la usen quedan **por probar**.
 - Byte 60 de la cabecera = categoría en `FLST_SEQ.ZDT` (LINESEL 02 = filtro, HALL 09 = reverb, FDCOMBO 04 = amplificador, CMN_DRV 0F = DLL común).
+
+## Análisis de cabeceras y dependencias del corpus completo (830 ZDL)
+
+Hecho con `tools/zdlinfo.py`, que lee la cabecera y la tabla de símbolos dinámicos del ELF.
+Hay **82 efectos** (por nombre) que el MS-100BT no tiene. Clasificados por riesgo:
+
+**Grupo A: cabecera estándar, sin dependencias, en categorías que el pedal ya muestra.** Es el riesgo más bajo.
+- 01 dinámica: 160_COMP, DUAL_CMP, D_COMP, LIMITER
+- 02 filtro: A_FILTER, BOTTOM_B, B_ATWAH, B_CRY, B_GEQ, B_PEQ, SPLITTER, ST_B_GEQ, Z_TRON
+- 06 modulación: B_CHORUS, B_DETUNE, B_ENSMBL, B_FLNGR, B_OCTAVE, B_PITCH
+- 07 SFX / sintes: 4V_SYN, B_SYNTH, DEFRET, STDSYN, SYNTLK, V_SYN, Z_SYN
+- 08 delay: MODDLY2
+- 09 reverb: LOFI_REV (DUAL_REV: la copia del MS-70CDR está truncada; la versión sin prefijo, de 42 339 B, parece completa)
+
+**Grupo B: categorías de bajo (0C drive de bajo, 0D preamp de bajo, 14, 16).** El índice del pedal tiene esas categorías, pero vacías; no se sabe si el menú del MS-100BT las muestra.
+- Las versiones del MS-60B dependen de **CMN_BASS.ZDL** (`Fx_DRV_*_KawaOD_Bass`).
+- `_BASS_TS`, `_B_FZSML` y `_B_SQUEK` (0C) no dependen de nada.
+
+**Grupo C: amplificadores de bajo (categoría 05, vacía en el pedal), con cabecera extendida `BCAB` (232).**
+El MS-100BT solo tiene cabeceras `CABI` (312), así que no se sabe si el firmware 1.30 entiende `BCAB`. Es el mayor riesgo.
+- SVT, HRT3500, AG_AMP, MARK_B, ACOUSTIC y B_MAN dependen de CMN_BASS.
+- Los `_FLIPTOP`, `_GKRUEGR`, `_HEAVEN`, `_MONOTON`, `_SMR` y `_SUPERB` no tienen dependencias externas.
+
+**No recomendados: categoría 0B (efectos de pedal de expresión).** PEDALWAH, PEDALVX, PEDALPIT… El MS-100BT no tiene pedal de expresión.
+
+## Índice `FLST_SEQ.ZDT` (verificado con `tools/flst.py`)
+- 32 categorías (0x00–0x1F). El archivo se reconstruye **idéntico byte a byte** a partir del modelo.
+- Ocupa 3073 de 4108 bytes, así que caben unos 79 efectos más en el índice.
+- No tiene CRC ni cola especial; solo ceros al final.
