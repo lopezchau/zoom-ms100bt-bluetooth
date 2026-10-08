@@ -485,7 +485,8 @@ func describeMsg(_ m: [UInt8]) -> String {
 }
 
 func writeFile(_ name: String, _ data: [UInt8], chunk: Int, dryRun: Bool) throws {
-    let protected = ["PAIR.DAT", "FLST_SEQ.ZDT"]
+    // PAIR.DAT nunca. FLST_SEQ.ZDT (índice de efectos) solo con --allow-index.
+    let protected = args.contains("--allow-index") ? ["PAIR.DAT"] : ["PAIR.DAT", "FLST_SEQ.ZDT"]
     guard !protected.contains(name.uppercased()) else { throw WriteError.refused(name) }
     guard name.utf8.count <= 12 else { throw WriteError.refused("nombre de más de 12 caracteres") }
     let crcOK: ([UInt8]) -> Bool = { isFs($0, sub: 0x03) && $0.count >= 11 && u35($0, 6) == 0 }
