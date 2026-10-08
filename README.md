@@ -167,6 +167,7 @@ Confirmed working on an MS-100BT: **WaveFold** and **DubSiren** (matujuice) and 
 - [docs/PROTOCOL.md](docs/PROTOCOL.md): transport, SysEx messages, file operations, effect-menu format, firmware notes, every hardware finding.
 - [docs/AVAILABLE-EFFECTS.md](docs/AVAILABLE-EFFECTS.md): which MS-50G / MS-60B / other effects the MS-100BT lacks, by risk.
 - [docs/PEDAL-EFFECTS.md](docs/PEDAL-EFFECTS.md): the effects on one MS-100BT, by category.
+- [docs/CUSTOM-EFFECTS.md](docs/CUSTOM-EFFECTS.md): write your own effects in C, preview them on a Mac, build them for the pedal.
 
 ## Credits
 

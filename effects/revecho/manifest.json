@@ -1,0 +1,15 @@
+{
+  "effect_name": "RevEcho",
+  "source": "revecho.c",
+  "audio_func_name": "Fx_DLY_RevEcho",
+  "gid": 8,
+  "fxid": 610,
+  "fxid_version": "1.00",
+  "dsp_cost": 30.0,
+  "params": [
+    {"name": "Time",     "max": 100, "default": 50},
+    {"name": "Feedback", "max": 100, "default": 40},
+    {"name": "Tone",     "max": 100, "default": 60},
+    {"name": "Mix",      "max": 100, "default": 50}
+  ]
+}

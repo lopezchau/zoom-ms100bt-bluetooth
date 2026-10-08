@@ -23,3 +23,7 @@ __pycache__/
 # Release artifacts and per-architecture builds
 dist/
 .build-*/
+
+# Custom-effect build output and previews (built ZDLs embed community/ZOOM runtime code; previews use third-party dry samples)
+effects/*/build/
+effects/*/previews/
