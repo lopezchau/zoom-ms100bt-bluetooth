@@ -42,6 +42,7 @@ struct LibraryView: View {
     @State private var source = "All"
     @State private var hideInstalled = true
     @State private var hideRisky = false
+    @State private var hideHidden = true
 
     var sources: [String] { ["All"] + Array(Set(model.library.map(\.source))).sorted() }
 
@@ -52,6 +53,7 @@ struct LibraryView: View {
             if hideInstalled && r == .installed { return false }
             if hideRisky && r > .low { return false }
             if r == .broken || r == .needsExpressionPedal { return false }
+            if hideHidden && r == .untestedCategory { return false }
             if source != "All" && it.source != source { return false }
             if !search.isEmpty {
                 let s = search.lowercased()
@@ -71,6 +73,7 @@ struct LibraryView: View {
                         .labelsHidden().frame(maxWidth: 150)
                     Toggle("Hide installed", isOn: $hideInstalled)
                     Toggle("Low risk only", isOn: $hideRisky)
+                    Toggle("Hide bass categories", isOn: $hideHidden)
                 }
                 .font(.caption)
                 Text("\(filtered.count) of \(model.library.count) effects · drag onto a category →")
@@ -142,7 +145,8 @@ struct RiskBadge: View {
         case .installed: return .blue
         case .low: return .green
         case .community: return .purple
-        case .untestedCategory, .untestedHeader, .tooBig: return .orange
+        case .untestedHeader, .tooBig: return .orange
+        case .untestedCategory: return .red
         case .needsExpressionPedal, .unsafeName, .broken: return .red
         }
     }
@@ -248,7 +252,7 @@ struct CategoryColumn: View {
     let cat: UInt8
     @State private var targeted = false
 
-    var experimental: Bool { EffectCategory.experimental.contains(cat) }
+    var hiddenOnPedal: Bool { EffectCategory.notShownOnMS100BT.contains(cat) }
 
     var body: some View {
         let names = model.effects(in: cat)
@@ -258,8 +262,8 @@ struct CategoryColumn: View {
                 Spacer()
                 Text("\(names.count)").foregroundStyle(.secondary)
             }
-            if experimental {
-                Text("Untested on the MS-100BT").font(.caption2).foregroundStyle(.orange)
+            if hiddenOnPedal {
+                Text("Not shown by the MS-100BT menu").font(.caption2).foregroundStyle(.red)
             }
             List {
                 ForEach(names, id: \.self) { name in

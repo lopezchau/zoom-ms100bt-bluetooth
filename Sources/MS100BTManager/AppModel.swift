@@ -163,6 +163,9 @@ final class AppModel: ObservableObject {
         if item.info.truncated { alert = "\(item.pedalName) is truncated and cannot be installed."; return }
         if !item.info.hasSafeName { alert = "\(item.pedalName): file names longer than 8.3 characters have frozen pedals at boot. Rename the file first."; return }
         if item.info.category == 0x0B { alert = "\(item.displayName) needs an expression pedal, which the MS-100BT does not have."; return }
+        if EffectCategory.notShownOnMS100BT.contains(item.info.category) {
+            notice = "\(item.displayName) is a \(EffectCategory.name(item.category)) effect: the MS-100BT menu does not show that category, so it would be stored but not selectable."
+        }
         if !item.isSharedLibrary, item.info.effectID != 0,
            let clash = library.first(where: { onPedal.contains($0.pedalName) && $0.pedalName != item.pedalName
                                               && $0.info.category == item.info.category && $0.info.effectID == item.info.effectID

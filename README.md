@@ -27,7 +27,7 @@ the pedal's Bluetooth protocol and provides:
 | Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, Splitter, Z-Tron, …: 27 installed) | ✅ |
 | Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
-| Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ⏳ untested |
+| Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ❌ installed but **not shown** by the MS-100BT menu |
 | Community custom effects (TI C6000 DSP): **WaveFold** (matujuice) works | ✅ first one confirmed |
 
 Things you should know:
@@ -73,7 +73,8 @@ Every effect shows its display name, knobs, category, origin and a risk label:
 |---|---|
 | Low risk | Standard header, no missing dependencies, a category the MS-100BT is known to show |
 | Community | Custom effect; only WaveFold has been confirmed on an MS-100BT so far |
-| Untested category / header | Bass categories, or the `BCAB` header used by bass amps; never tried on an MS-100BT |
+| Not shown by the MS-100BT menu | Bass categories: the effect is stored but the menu (DYN/FLTR, OD/DIST, AMP, MOD/SFX, DLY/REV) never lists it |
+| Untested header | The `BCAB` header used by bass amps; never tried on an MS-100BT |
 | Larger than 32 KB | Above the largest custom size known to load (on an MS-70CDR) |
 | Needs expression pedal | Pedal-operated effects; the MS-100BT has no expression pedal (hidden) |
 | Name longer than 8.3 | Blocked: long file names have frozen pedals at boot |

@@ -14,7 +14,7 @@ struct LibraryItem: Identifiable, Hashable {
             case .community: return "Community — test before relying on it"
             case .tooBig: return "Larger than 32 KB"
             case .unsafeName: return "Name longer than 8.3"
-            case .untestedCategory: return "Untested category"
+            case .untestedCategory: return "Not shown by the MS-100BT menu"
             case .untestedHeader: return "Untested header"
             case .needsExpressionPedal: return "Needs expression pedal"
             case .broken: return "Truncated — unusable"

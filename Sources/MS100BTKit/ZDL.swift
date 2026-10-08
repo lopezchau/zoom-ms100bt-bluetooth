@@ -123,8 +123,10 @@ public enum EffectCategory {
     ]
     /// Categories the MS-100BT menu is known to show.
     public static let confirmed: [UInt8] = [0x01, 0x02, 0x03, 0x04, 0x06, 0x07, 0x08, 0x09]
-    /// Present in the firmware's category table but never tested on the MS-100BT.
-    public static let experimental: [UInt8] = [0x05, 0x0C, 0x0D]
+    /// In the firmware's category table, but the MS-100BT menu has no group for them:
+    /// effects installed there are stored but never shown (confirmed with a bass drive).
+    public static let notShownOnMS100BT: [UInt8] = [0x05, 0x0B, 0x0C, 0x0D, 0x14, 0x16]
+    public static let experimental: [UInt8] = []
     public static let sharedLibrary: UInt8 = 0x0F
 
     public static func name(_ c: UInt8) -> String { names[c] ?? String(format: "Category %02X", c) }

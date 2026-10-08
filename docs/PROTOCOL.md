@@ -303,3 +303,12 @@ the plan (deletes, writes with read-back verification, new effect index) ran end
 (9,342 B, standard 56-byte header, TI C6000 build from the community linker) was installed with MS-100BT Manager
 and **works on the pedal** (firmware 1.30). This is the first custom (non-ZOOM) DSP effect confirmed on an MS-100BT;
 the themanro README lists the MS-100BT as "not supported", but this shows ZDLs from that toolchain can load.
+
+### Bass categories are not shown by the MS-100BT menu (2026-10-08)
+
+A bass drive from the MS-60B (category 0x0C/0x0D) was installed and listed in `FLST_SEQ.ZDT` under its own category:
+the file is on the pedal, but **the MS-100BT menu does not show it**. This matches the firmware's effect-selection screen,
+which only has five groups — `SELECT CATEGORY` → `DYN/FLTR`, `OD/ DIST`, `AMP`, `MOD/SFX`, `DLY/REV` (strings in `MAIN.bin`,
+offset ≈ 468 913) — i.e. index categories 01–02, 03, 04, 06–07 and 08–09. The bass names in the firmware's category table
+(BassDrive, BassPreAmp, BassAmpModeling) are shared code with the MS-60B but have no menu group on the MS-100BT.
+Still open: whether a bass effect listed under a guitar category (e.g. 03) would load.
