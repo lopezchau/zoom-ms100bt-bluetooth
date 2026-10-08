@@ -1,72 +1,158 @@
 # zoom-ms100bt-bluetooth
 
-Una herramienta para macOS (incluido Apple Silicon) que se comunica con el pedal **ZOOM MS-100BT MultiStomp** por Bluetooth.
-El objetivo final es instalar efectos nuevos, incluidos efectos personalizados, sin depender de la app StompShare para iOS,
-que está abandonada.
+**Install new effects on a ZOOM MS-100BT MultiStomp from a Mac — over Bluetooth, with drag and drop.**
 
-> Proyecto independiente, sin relación con ZOOM Corporation. Úsalo bajo tu propia responsabilidad.
+The MS-100BT could only get extra effects through ZOOM's StompShare iOS app, which has been abandoned since 2016,
+and its firmware updater is a 32-bit Intel/PowerPC app that no current Mac can run. This project reverse-engineered
+the pedal's Bluetooth protocol and provides:
 
-## Estado
+- **MS-100BT Manager**, a native macOS app (Apple Silicon and Intel). The left pane is a library of effect files; the
+  right pane shows the pedal's effect menu by category. Drag effects in, drag to reorder, remove what you don't use, then *Apply*.
+- **`ms100bt`**, the command-line engine behind the app: identify, read state, back up, apply a change plan.
+- Complete protocol documentation, all verified on real hardware.
 
-| Paso | Estado |
+![MS-100BT Manager](docs/images/manager.jpg)
+
+> Independent project, not affiliated with or endorsed by ZOOM Corporation. Use at your own risk.
+
+## What has been verified on a real MS-100BT (firmware 1.30, Apple M1, macOS 26)
+
+| | |
 |---|---|
-| Descifrar el protocolo del actualizador oficial (v1.30, i386/PPC) | ✅ |
-| Identificación del pedal por Bluetooth desde un M1 | ✅ |
-| Listado de archivos, espacio libre e info del sistema de archivos | ✅ |
-| Respaldo completo de los archivos del pedal (lectura verificada con CRC) | ✅ |
-| Escritura de un efecto (`.ZDL`) con verificación por relectura | ✅ |
-| Registrar efectos en `FLST_SEQ.ZDT` | ✅ |
-| **Primer efecto nuevo instalado: Z_SYN (MS-60B) funcionando en el MS-100BT** | ✅ |
-| Instalador por lotes (varios efectos + índice) | ⏳ siguiente |
-| Efectos personalizados (DSP TI C6000) | ⏳ |
-| Interfaz gráfica | ⏳ |
+| Bluetooth connection (RFCOMM channel 2, model ID 0x5E) | ✅ |
+| Listing files, free space, file-system info | ✅ |
+| Full backup of all 175 stock files, CRC-checked | ✅ |
+| Writing files, each one read back and compared | ✅ |
+| Editing the effect menu (`FLST_SEQ.ZDT`) | ✅ |
+| Effects from the **MS-60B** working on the MS-100BT (Z-Syn, Std Syn, B-Octave, Limiter, …: 25 installed) | ✅ |
+| Factory reset (All Initialize) keeps added effects | ✅ |
+| Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ⏳ untested |
+| Community custom effects (TI C6000 DSP) | ⏳ untested on MS-100BT |
 
-Los detalles técnicos están en [PROTOCOL.md](PROTOCOL.md).
+Things you should know:
 
-## Requisitos
+- **The pedal holds at most 200 files**, whatever the free space. A stock pedal with the full StompShare library has 175.
+  To add more, remove effects you don't use; the app keeps a copy of everything it removes.
+- **After an All Initialize the pedal forgets its pairing.** Remove “ZOOM MS-100BT” in *System Settings → Bluetooth* and connect again.
+- The MS-100BT is the same platform as the MS-50G: 167 of the MS-50G's 173 effects are byte-identical to the MS-100BT's.
 
-- macOS 12 o posterior, con las Command Line Tools de Xcode (`swiftc`)
-- Un ZOOM MS-100BT (probado con SYSTEM 1.30)
+## Requirements
 
-## Compilar
+- macOS 13 or later, Apple Silicon or Intel
+- Xcode Command Line Tools (`xcode-select --install`) to build
+- A ZOOM MS-100BT. Use the AC adapter during writes: the pedal refuses to write when the batteries are low.
 
-```bash
-./build.sh
-```
-
-Genera `build/MS100BTProbe.app`, una app sin ventana que declara el permiso de Bluetooth que exige macOS.
-
-## Uso
-
-Primero pon el pedal en **MENU → Bluetooth → PAIRING**.
+## Build and run
 
 ```bash
-# Identificación (solo lectura)
-open -W build/MS100BTProbe.app --args --log "$PWD/logs/probe.txt"
-
-# Info del sistema de archivos y listado de archivos (solo lectura)
-open -W build/MS100BTProbe.app --args --log "$PWD/logs/fs.txt" --fs
-
-# Respaldo completo de los archivos del pedal (solo lectura)
-open -W build/MS100BTProbe.app --args --log "$PWD/logs/backup.txt" --backup "$PWD/backup/$(date +%F)" --chunk 4096
+scripts/build-app.sh
 ```
-
-Opciones:
-- `--address XX-XX-XX-XX-XX-XX`: no buscar el pedal y usar esa dirección
-- `--channel N`: canal RFCOMM; en el MS-100BT el canal MIDI es el 2
-- `--only NOMBRE`: respaldar un solo archivo
-
-Escribir un archivo (primero simula; después escribe de verdad y verifica volviendo a leerlo):
 
 ```bash
-open -W build/MS100BTProbe.app --args --log "$PWD/logs/w.txt" --write RUTA/ARCHIVO.ZDL --dry-run
-open -W build/MS100BTProbe.app --args --log "$PWD/logs/w.txt" --write RUTA/ARCHIVO.ZDL --confirm-write
+open "build/MS-100BT Manager.app"
 ```
 
-La herramienta nunca envía los comandos de borrado o escritura de firmware y se niega a tocar `PAIR.DAT` y `FLST_SEQ.ZDT`.
+On the pedal: press knob 1 (**MENU**) → **Bluetooth** → **PAIRING**. Then click **Connect** in the app and allow
+Bluetooth access when macOS asks. Reading the pedal takes about 30 seconds.
 
-## Aviso
+## Getting effects
 
-Este repositorio no incluye archivos de ZOOM: ni firmware, ni efectos `.ZDL`, ni los respaldos. `.gitignore` los excluye.
-La licencia del actualizador oficial prohíbe la ingeniería inversa. Este trabajo se hizo solo con fines de
-interoperabilidad, con un pedal propio.
+This repository contains **no ZOOM files**. The app downloads them on request:
+
+- **Library → Download stock effect library**: 830 stock effects from the MS-50G, MS-60B, MS-70CDR, G1on and B1on
+  families (363 unique), fetched from [repeat98/ZoomMultistompZDL](https://github.com/repeat98/ZoomMultistompZDL).
+- **Library → Download community custom effects**: custom DSP effects, fetched from each author's repository
+  (see below).
+- **Back up**: copies every file on your pedal into the library. Use this first; it is the only way to keep the StompShare effects.
+- **Add folder of .ZDL files**: any other folder.
+
+Every effect shows its display name, knobs, category, origin and a risk label:
+
+| Label | Meaning |
+|---|---|
+| Low risk | Standard header, no missing dependencies, a category the MS-100BT is known to show |
+| Community | Custom effect; none has been confirmed on an MS-100BT yet |
+| Untested category / header | Bass categories, or the `BCAB` header used by bass amps; never tried on an MS-100BT |
+| Larger than 32 KB | Above the largest custom size known to load (on an MS-70CDR) |
+| Needs expression pedal | Pedal-operated effects; the MS-100BT has no expression pedal (hidden) |
+| Name longer than 8.3 | Blocked: long file names have frozen pedals at boot |
+
+The app also adds required shared libraries automatically (for example `CMN_BASS.ZDL` for MS-60B bass drives). It
+blocks effects whose effect ID clashes with one already in the same category.
+
+## How *Apply* keeps you safe
+
+1. It re-reads the pedal and aborts if its menu changed since you connected.
+2. It checks the 200-file limit.
+3. It saves the current menu and **every file it is about to delete** to `~/Library/Application Support/MS-100BT Manager/backups/`.
+4. It deletes, then writes each new file and **reads it back** to compare, then writes the new menu and reads that back too.
+5. It never sends firmware commands and never touches `PAIR.DAT`.
+
+**Dry run** does steps 1–2 and sends nothing.
+
+## Command line
+
+`scripts/ms100bt.sh` runs the engine through a small app wrapper, so macOS grants Bluetooth access:
+
+```bash
+scripts/ms100bt.sh state
+```
+
+```bash
+scripts/ms100bt.sh backup ~/Desktop/ms100bt-backup
+```
+
+Offline helpers:
+
+```bash
+.build/release/ms100bt zdl SOME.ZDL
+```
+
+```bash
+.build/release/ms100bt index FLST_SEQ.ZDT
+```
+
+The Python tools `tools/zdlinfo.py` and `tools/flst.py` do the same, without building anything.
+
+## Custom effects (TI C6000 DSP)
+
+The MS-100BT runs effects on a TI TMS320C674x DSP, the same family as the MS-50G/60B/70CDR. Community projects already
+build custom effects for it:
+
+- [themanro/ZoomMultistompZDL](https://github.com/themanro/ZoomMultistompZDL): toolchain and 20+ effects (MS-70CDR).
+  Read its [SAFE-DSP-RULES](https://github.com/themanro/ZoomMultistompZDL/blob/main/docs/SAFE-DSP-RULES.md) and LOADER-SAFETY docs.
+- [matujuice/zoom-ms-zdl-effects-pack](https://github.com/matujuice/zoom-ms-zdl-effects-pack): 12 effects tested on an
+  MS-60B running MS-50G firmware, the closest known setup to the MS-100BT.
+- [repeat98/ZoomMultistompZDL](https://github.com/repeat98/ZoomMultistompZDL): the original toolchain and Airwindows ports.
+- [marcfuentes/dustbox-zdl](https://github.com/marcfuentes/dustbox-zdl) and [marcfuentes/silverst-zdl](https://github.com/marcfuentes/silverst-zdl).
+
+Building needs TI's C6000 compiler (CGT 8.5.0.LTS, shipped with Code Composer Studio) plus their Python linker.
+
+**Note:** ZDLs produced by that linker embed small pieces of ZOOM runtime code. Read each project's license notes.
+This is why the app downloads them from their authors instead of bundling them.
+
+To try your own build, put the `.ZDL` (8.3 file name) in the app's *custom-effects* folder (Library menu), then drag it onto the pedal.
+**Please report which custom effects work on an MS-100BT**; nobody has confirmed one yet.
+
+## Documentation
+
+- [docs/PROTOCOL.md](docs/PROTOCOL.md): transport, SysEx messages, file operations, effect-menu format, firmware notes, every hardware finding.
+- [docs/AVAILABLE-EFFECTS.md](docs/AVAILABLE-EFFECTS.md): which MS-50G / MS-60B / other effects the MS-100BT lacks, by risk.
+- [docs/PEDAL-EFFECTS.md](docs/PEDAL-EFFECTS.md): the effects on one MS-100BT, by category.
+
+## Credits
+
+- [mungewell/zoom-zt2](https://github.com/mungewell/zoom-zt2): the shared ZOOM file-system protocol (G-series and MS Plus).
+- [repeat98](https://github.com/repeat98/ZoomMultistompZDL), [themanro](https://github.com/themanro/ZoomMultistompZDL),
+  [matujuice](https://github.com/matujuice/zoom-ms-zdl-effects-pack) and [Leemuzhko](https://github.com/Leemuzhko):
+  ZDL format and custom effects.
+- [g200kg/zoom-ms-utility](https://github.com/g200kg/zoom-ms-utility) and
+  [Barsik-Barbosik/Zoom-Firmware-Editor](https://github.com/Barsik-Barbosik/Zoom-Firmware-Editor).
+
+## Legal
+
+This repository contains no ZOOM firmware or effect files; `.gitignore` excludes them. ZOOM's updater license forbids
+reverse engineering. The protocol was studied only to make a pedal the author owns work with current Macs, which is
+interoperability. Do not use this project to redistribute ZOOM files.
+
+Code: MIT License (see [LICENSE](LICENSE)).

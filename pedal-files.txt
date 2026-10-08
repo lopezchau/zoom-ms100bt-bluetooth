@@ -1,4 +1,4 @@
-# Archivos en el MS-100BT (175), leído el 2026-10-08. Tamaño en bytes (bytes 30-34 de la respuesta).
+# Files on the MS-100BT (175), read on 2026-10-08. Size in bytes (bytes 30-34 of the response).
 ACOSIM.ZDL        10125
 AIR.ZDL           13948
 ALIEN.ZDL         14763
@@ -174,4 +174,4 @@ SPRING63.ZDL      21803
 MODREV.ZDL        20104
 SLAPBACK.ZDL      23652
 PLATE.ZDL         18567
-# suma de tamaños: 3062163
+# total size: 3062163

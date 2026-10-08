@@ -1,16 +1,21 @@
-# Archivos de Zoom (efectos y firmware): nunca subir
+# Zoom files (effects and firmware): never commit
 backup/
 *.ZDL
 *.ZDT
 *.DAT
 *.bin
 
-# Registros de sesiones (incluyen la dirección Bluetooth del pedal)
+# Session logs (they include the pedal's Bluetooth address)
 logs/
 
-# Compilados
+# Build output
 build/
 .DS_Store
 
-# Archivos preparados para instalar (contienen efectos de Zoom)
+# Files staged for installation (they contain Zoom effects)
 staging/
+
+# Python bytecode and SwiftPM build output
+__pycache__/
+.build/
+.swiftpm/
