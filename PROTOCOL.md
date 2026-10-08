@@ -226,3 +226,11 @@ Hay categorías de 0x00 a 0x1A o más; muchas están vacías. Datos útiles hast
 Los efectos de StompShare aparecen al final de su categoría. Esto confirma que, para que un efecto nuevo
 aparezca en el menú, **hay que subir el .ZDL y además insertar su nombre en `FLST_SEQ.ZDT`** dentro de la categoría correcta.
 Es una hipótesis razonable; queda por confirmar.
+
+## Instalación de un efecto nuevo (2026-10-08): Z_SYN del MS-60B
+
+1. Se escribió `Z_SYN.ZDL` (14 097 B, 4 bloques) y se verificó con CRC32 5f19a8d2.
+   El borrado previo respondió `60 03 7A 7F 7F 7F 0F` (0xFFFFFFFA = no existe), lo cual es inofensivo.
+2. Se escribió `FLST_SEQ.ZDT` con `Z_SYN.ZDL` añadido al final de la categoría 07 y se verificó con CRC32 b832cbf8.
+   - **El handle no siempre es 00×5:** al abrir FLST_SEQ.ZDT el pedal devolvió `54 26 46 28 0E`. Siempre hay que usar el handle que devuelve "abrir".
+3. Resultado en el pedal: pendiente de confirmar (tras reiniciar, Z_SYN debe aparecer en SFX).
