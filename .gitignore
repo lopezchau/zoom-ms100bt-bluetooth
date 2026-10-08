@@ -11,3 +11,6 @@ logs/
 # Compilados
 build/
 .DS_Store
+
+# Archivos preparados para instalar (contienen efectos de Zoom)
+staging/
