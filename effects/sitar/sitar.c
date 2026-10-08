@@ -1,14 +1,15 @@
 /*
  * Sitar — makes a guitar sound like a sitar on the ZOOM MS-100BT.
  *
- *  1. Jawari buzz: a sitar string grazes its curved bridge on one side of its swing.
- *     The input is high-passed, normalized by its own envelope (so the buzz lives through
- *     the whole note, not only the attack) and flattened asymmetrically on the negative side,
- *     plus a soft odd-harmonic rattle; then the envelope is restored.
- *  2. Twang: a resonant band-pass whose centre jumps up with each pick attack and falls as
- *     the note decays (the nasal "dwang").
- *  3. Taraf: 11 sympathetic strings (filtered comb resonators) tuned to a raga in the chosen
- *     key, excited by the buzzing signal; odd strings left, even strings right.
+ *  1. Jawari. A sitar string vibrates against a wide curved bridge; the closer it swings to the
+ *     bridge, the shorter its effective length. Physical models (Välimäki et al.) render this as a
+ *     very short delay whose length is driven by the string's own displacement. Mixed with the
+ *     direct signal it becomes a comb filter whose notches move inside every cycle and drift as the
+ *     note decays: the sweeping "zing" of the sitar. The displacement is normalized by the note's
+ *     envelope so the effect does not depend on how hard you pick, only on where the note is in its life.
+ *  2. Twang. A resonant band-pass jumps up on each pick attack and glides down over ~200 ms.
+ *  3. Taraf. 11 sympathetic strings (filtered comb resonators) tuned to a raga in the chosen key,
+ *     excited by the jawari voice and passed through their own jawari; odd strings left, even right.
  *
  * Knobs: Buzz, Twang, Strings, Decay, Key (0–11 = C–B), Raga (0 Bilawal, 1 Kafi, 2 Bhairav), Mix.
  */
@@ -18,10 +19,12 @@
 #define SITAR_AUDIO_FUNC Fx_SFX_Sitar
 #endif
 
-#define ST_MAGIC     0x53495431u   /* 'SIT1' */
+#define ST_MAGIC     0x53495432u   /* 'SIT2' */
 #define ST_STRINGS   11
-#define ST_LINE      512u          /* samples per string line (≥ 44100 / 130.8 Hz) */
+#define ST_LINE      512u          /* samples per string line (≥ 44100 / 261.6 Hz with margin) */
 #define ST_LINE_MASK (ST_LINE - 1u)
+#define JW_LEN       128u          /* jawari delay lines (≤ 2.9 ms) */
+#define JW_MASK      (JW_LEN - 1u)
 
 #define SLOT_BUZZ    5
 #define SLOT_TWANG   6
@@ -34,22 +37,26 @@
 typedef struct {
     uint32_t magic;
     uint32_t cleared;
-    int32_t  key, raga;          /* tuning the strings were last computed for */
-    uint32_t wp;                 /* shared write position of all string lines */
-    float    delay[ST_STRINGS];  /* string period in samples */
-    float    damp[ST_STRINGS];   /* loop low-pass state per string */
-    float    lowLp;              /* high-pass helper for the buzz input */
-    float    env, envFast;       /* envelopes */
-    float    svLow, svBand;      /* twang state-variable filter */
-    float    zingLp;             /* brightness high-pass helper */
+    int32_t  key, raga;
+    uint32_t wp;                 /* shared write position of the string lines */
+    uint32_t jp;                 /* write position of the jawari lines */
+    float    delay[ST_STRINGS];
+    float    damp[ST_STRINGS];
+    float    lowLp;              /* removes the guitar's low end (sitars are thin) */
+    float    env;                /* note envelope (normalizes the displacement) */
+    float    twEnv;              /* twang envelope: instant attack, ~200 ms glide */
+    float    peak;               /* recent attack peak, for the twang ratio */
+    float    svLow, svBand;      /* twang filter */
+    float    bodyLow, bodyBand;  /* fixed nasal resonance (~2.6 kHz) */
+    float    exA, exB;           /* exciter high-pass states */
+    float    jawLead[JW_LEN];
+    float    jawSym[JW_LEN];
 } SitarState;
 
-/* Semitones above Sa of sympathetic string i (0..10) for a raga. No tables (they would land in
- * .const, which the audio code must not read), so it is a chain of comparisons. */
 ZDL_ALWAYS_INLINE(st_semitones)
 static inline int st_semitones(int i, int raga)
 {
-    int s = 0;                                   /* Bilawal (major): Sa Re Ga Ma Pa Dha Ni Sa' Re' Ga' Pa' */
+    int s = 0;                                   /* Bilawal: Sa Re Ga Ma Pa Dha Ni Sa' Re' Ga' Pa' */
     if (i == 1) s = 2;
     if (i == 2) s = 4;
     if (i == 3) s = 5;
@@ -73,6 +80,17 @@ static inline int st_semitones(int i, int raga)
     return s;
 }
 
+/* Reads a delay line `d` samples (fractional) behind write position `w`. */
+ZDL_ALWAYS_INLINE(st_tap)
+static inline float st_tap(const float *line, uint32_t w, float d, uint32_t mask)
+{
+    int di = (int)d;
+    float fr = d - (float)di;
+    uint32_t r0 = (w - (uint32_t)di) & mask;
+    uint32_t r1 = (r0 - 1u) & mask;
+    return line[r0] + fr * (line[r1] - line[r0]);
+}
+
 ZDL_AUDIO_FUNCTION(SITAR_AUDIO_FUNC)
 void SITAR_AUDIO_FUNC(zdl_word *ctx)
 {
@@ -86,64 +104,65 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
     float *lines = (float *)linesBase;
 
     int s;
+    uint32_t n;
     if (st->magic != ST_MAGIC) {
         st->magic = ST_MAGIC;
         st->cleared = 0u;
         st->key = -1;
         st->raga = -1;
         st->wp = 0u;
+        st->jp = 0u;
         for (s = 0; s < ST_STRINGS; s++) { st->damp[s] = 0.0f; st->delay[s] = 200.0f; }
+        for (n = 0; n < JW_LEN; n++) { st->jawLead[n] = 0.0f; st->jawSym[n] = 0.0f; }
         st->lowLp = 0.0f;
         st->env = 0.0f;
-        st->envFast = 0.0f;
-        st->svLow = 0.0f;
-        st->svBand = 0.0f;
-        st->zingLp = 0.0f;
+        st->twEnv = 0.0f;
+        st->peak = 0.0f;
+        st->svLow = 0.0f; st->svBand = 0.0f;
+        st->bodyLow = 0.0f; st->bodyBand = 0.0f;
+        st->exA = 0.0f; st->exB = 0.0f;
     }
     if (st->cleared < (uint32_t)(ST_STRINGS * ST_LINE)) {
         uint32_t e = st->cleared + 2048u;
         if (e > (uint32_t)(ST_STRINGS * ST_LINE)) e = (uint32_t)(ST_STRINGS * ST_LINE);
-        uint32_t i;
-        for (i = st->cleared; i < e; i++) lines[i] = 0.0f;
+        for (n = st->cleared; n < e; n++) lines[n] = 0.0f;
         st->cleared = e;
         return;
     }
 
-    float buzz = zdl_knob(params[SLOT_BUZZ], 0.6f);
+    float buzz = zdl_knob(params[SLOT_BUZZ], 0.7f);
     float twang = zdl_knob(params[SLOT_TWANG], 0.5f);
     float strings = zdl_knob(params[SLOT_STRINGS], 0.5f);
     float decay = zdl_knob(params[SLOT_DECAY], 0.6f);
-    /* Key and Raga are small integer knobs: the pedal delivers value / 100. */
     int key = (int)(zdl_knob(params[SLOT_KEY], 0.0f) * 100.0f + 0.5f);
     int raga = (int)(zdl_knob(params[SLOT_RAGA], 0.0f) * 100.0f + 0.5f);
-    float mix = zdl_knob(params[SLOT_MIX], 0.8f);
+    float mix = zdl_knob(params[SLOT_MIX], 0.9f);
     if (key > 11) key = 11;
     if (raga > 2) raga = 2;
 
-    /* Retune the strings only when Key or Raga changes. Sa is in the C4–B4 octave. */
     if (key != st->key || raga != st->raga) {
         float sa = 261.6256f;
         int k;
         for (k = 0; k < key; k++) sa *= 1.0594631f;
         for (s = 0; s < ST_STRINGS; s++) {
             float f = sa;
-            int n = st_semitones(s, raga);
-            for (k = 0; k < n; k++) f *= 1.0594631f;
+            int m = st_semitones(s, raga);
+            for (k = 0; k < m; k++) f *= 1.0594631f;
             st->delay[s] = 44100.0f * zdl_recip(f);
         }
         st->key = key;
         st->raga = raga;
     }
 
-    float feedback = 0.96f + 0.034f * decay;            /* string sustain (≤ 0.994; the halo limiter stops pile-up) */
-    float loopLp = 0.3f + 0.4f * decay;                  /* brighter loop = longer shimmer */
-    float drive = 1.0f + 4.0f * buzz;
-    float thr = 0.7f - 0.5f * buzz;                      /* where the string meets the bridge */
-    float trim = zdl_recip(1.0f + 2.0f * buzz + 0.6f * twang);   /* keep the level close to the dry guitar */
+    float feedback = 0.96f + 0.034f * decay;
+    float loopLp = 0.35f + 0.45f * decay;
+    float jawDepth = 6.0f + 34.0f * buzz;          /* samples of length change at full bridge contact */
+    float trim = zdl_recip(1.0f + 0.5f * buzz + 0.8f * twang);
 
-    uint32_t wp = st->wp;
-    float lowLp = st->lowLp, env = st->env, envFast = st->envFast;
-    float svLow = st->svLow, svBand = st->svBand, zingLp = st->zingLp;
+    uint32_t wp = st->wp, jp = st->jp;
+    float lowLp = st->lowLp, env = st->env, twEnv = st->twEnv, peak = st->peak;
+    float svLow = st->svLow, svBand = st->svBand, bodyLow = st->bodyLow, bodyBand = st->bodyBand;
+    float exA = st->exA, exB = st->exB;
 
     int i;
     for (i = 0; i < 8; i++) {
@@ -151,55 +170,78 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         float inR = fx[i + 8];
         float in = 0.5f * (inL + inR);
 
-        /* --- jawari buzz --- */
-        lowLp += 0.02f * (in - lowLp);                   /* ~140 Hz */
-        float hp = in - lowLp;
-        float a = hp < 0.0f ? -hp : hp;
-        env += (a > env ? 0.05f : 0.0004f) * (a - env);
-        envFast += (a > envFast ? 0.3f : 0.002f) * (a - envFast);
-        float xn = hp * drive * zdl_recip(env + 0.0005f);   /* level-independent swing */
-        float graze = xn < -thr ? -thr + 0.12f * (xn + thr) : xn;   /* flattened on the bridge side */
-        float rattle = zdl_softclip(0.5f * xn);
-        float shaped = (0.6f * graze + 0.4f * rattle) * env * zdl_recip(drive);
-        zingLp += 0.15f * (shaped - zingLp);             /* keep the 1 kHz+ zing */
-        float zing = shaped - zingLp;
-        float buzzed = hp * (1.0f - 0.4f * buzz) + buzz * (0.9f * shaped + 1.4f * zing);
+        /* Thin the guitar: high-pass ~180 Hz. */
+        lowLp += 0.025f * (in - lowLp);
+        float str = in - lowLp;
+        float a = str < 0.0f ? -str : str;
+        env += (a > env ? 0.08f : 0.0006f) * (a - env);
 
-        /* --- twang: resonant band-pass that follows each attack --- */
-        float fc = 400.0f + 2600.0f * zdl_clamp(envFast * 12.0f, 0.0f, 1.0f) * twang;
-        float f = 6.2831853f * fc * (1.0f / 44100.0f);   /* 2·sin(π fc/fs) ≈ 2π fc/fs below 3 kHz */
-        float q = 0.35f;
+        /* --- jawari: displacement-driven delay modulation --- */
+        float disp = str * zdl_recip(env + 0.0003f);              /* ≈ −1.5 … 1.5 within each cycle */
+        float contact = zdl_clamp(-disp, 0.0f, 1.5f);              /* only the bridge side grazes */
+        st->jawLead[jp] = str;
+        float jd = 1.5f + jawDepth * contact;
+        float jaw = st_tap(st->jawLead, jp, jd, JW_MASK);
+        float comb = 0.5f * (str + jaw);                           /* moving notches = the sweep */
+        float zing = str - jaw;                                    /* the sizzle above them */
+        float lead = (1.0f - buzz) * str + buzz * (comb + 0.9f * zing);
+
+        /* --- twang: band-pass that jumps on the attack and glides down --- */
+        peak += (a > peak ? 0.5f : 0.00002f) * (a - peak);
+        twEnv += (a > twEnv ? 0.5f : 0.00012f) * (a - twEnv);     /* ~190 ms glide */
+        float ratio = zdl_clamp(twEnv * zdl_recip(peak + 0.0003f), 0.0f, 1.0f);
+
+        /* --- bridge exciter: the collision makes new high harmonics (rectified displacement,
+         *     high-passed ~1.8 kHz twice). It blooms after the attack, as the decaying string
+         *     falls into the bridge's contact zone. --- */
+        float rect = disp < 0.0f ? -disp : disp;
+        exA += 0.23f * (rect - exA);
+        float exHp = rect - exA;
+        exB += 0.23f * (exHp - exB);
+        float bloom = 1.0f - 0.7f * ratio;
+        lead += buzz * 2.2f * bloom * (exHp - exB) * env;
+        float fc = 700.0f + 3300.0f * ratio * ratio;
+        float f = 6.2831853f * fc * (1.0f / 44100.0f);
         svLow += f * svBand;
-        float svHigh = buzzed - svLow - q * svBand;
+        float svHigh = lead - svLow - 0.18f * svBand;
         svBand += f * svHigh;
-        float voice = (buzzed + twang * svBand) * trim;
 
-        /* --- taraf: sympathetic strings --- */
-        float exc = 0.2f * voice;
+        /* Fixed nasal resonance of the gourd/bridge, ~2.6 kHz. */
+        bodyLow += 0.37f * bodyBand;
+        float bodyHigh = lead - bodyLow - 0.5f * bodyBand;
+        bodyBand += 0.37f * bodyHigh;
+
+        float voice = (lead + twang * 0.9f * svBand + 0.35f * bodyBand) * trim;
+
+        /* --- taraf: sympathetic strings, with their own jawari --- */
+        float exc = 0.25f * voice;
         float symL = 0.0f, symR = 0.0f;
         for (s = 0; s < ST_STRINGS; s++) {
             float *line = lines + s * ST_LINE;
-            float d = st->delay[s];
-            int di = (int)d;
-            float fr = d - (float)di;
-            uint32_t r0 = (wp - (uint32_t)di) & ST_LINE_MASK;
-            uint32_t r1 = (r0 - 1u) & ST_LINE_MASK;
-            float past = line[r0] + fr * (line[r1] - line[r0]);
+            float past = st_tap(line, wp, st->delay[s], ST_LINE_MASK);
             float dmp = st->damp[s] + loopLp * (past - st->damp[s]);
             st->damp[s] = dmp;
             line[wp] = exc + feedback * dmp;
             if (s & 1) symR += dmp; else symL += dmp;
         }
         wp = (wp + 1u) & ST_LINE_MASK;
+        float sym = symL + symR;
+        st->jawSym[jp] = sym;
+        float symContact = zdl_clamp(-sym * 8.0f, 0.0f, 1.0f);
+        float symJaw = st_tap(st->jawSym, jp, 1.5f + 20.0f * symContact, JW_MASK);
+        float shimmer = 0.5f * (sym + symJaw) + 0.6f * (sym - symJaw);
+        jp = (jp + 1u) & JW_MASK;
 
-        /* Soft limiter on the string halo: it can never swamp the played note. */
-        float wetL = voice + strings * 0.6f * zdl_softclip(2.0f * symL);
-        float wetR = voice + strings * 0.6f * zdl_softclip(2.0f * symR);
+        float spreadL = 0.6f * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symL));
+        float spreadR = 0.6f * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symR));
+        float wetL = voice + strings * spreadL;
+        float wetR = voice + strings * spreadR;
         fx[i] = inL + mix * (wetL - inL);
         fx[i + 8] = inR + mix * (wetR - inR);
     }
 
-    st->wp = wp;
-    st->lowLp = lowLp; st->env = env; st->envFast = envFast;
-    st->svLow = svLow; st->svBand = svBand; st->zingLp = zingLp;
+    st->wp = wp; st->jp = jp;
+    st->lowLp = lowLp; st->env = env; st->twEnv = twEnv; st->peak = peak;
+    st->svLow = svLow; st->svBand = svBand; st->bodyLow = bodyLow; st->bodyBand = bodyBand;
+    st->exA = exA; st->exB = exB;
 }
