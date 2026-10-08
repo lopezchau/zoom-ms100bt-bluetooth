@@ -260,3 +260,16 @@ Es una hipótesis razonable; queda por confirmar.
 ## Instalación por lotes (grupo A, tanda 1)
 `--write-many LISTA` escribe y verifica (relectura completa) cada archivo y se detiene en el primer error.
 Tanda 1: 14 efectos del MS-60B (232 KB), todos verificados, más el índice (CRC32 17652ffb).
+
+## Límite del sistema de archivos: 200 archivos (2026-10-08)
+
+Tanda 2: se escribieron 10 efectos. El 11.º (SPLITTER.ZDL) se **abrió** (handle 00×5), pero el **primer bloque de escritura** fue rechazado con
+`60 03 7F 7F 7F 7F 0F` (= -1). Una lectura posterior mostró **exactamente 200 archivos** con **327 200 B libres**, y SPLITTER.ZDL no existía.
+→ **El sistema de archivos admite como máximo 200 entradas**, sin importar el espacio libre. No quedó ningún archivo a medias.
+
+- Entre esos 200 están `FLST_SEQ.ZDT`, `PAIR.DAT`, `CMN_DRV.ZDL` y `LINESEL.ZDL`.
+- Para instalar más efectos hay que **borrar** otros (`60 24 <nombre>`) y quitarlos del índice.
+- Reescribir un archivo existente (borrar y crear) funciona aunque haya 200: se reescribió el índice y se verificó (CRC32 3d739c0f).
+- Pendiente en la herramienta: comprobar la cantidad de archivos antes de escribir uno nuevo.
+
+Estado tras la tanda 2: 24 efectos del grupo A instalados y en el índice. Sin instalar por falta de entradas: SPLITTER, ST_B_GEQ, Z_TRON, DUAL_REV.
