@@ -1,0 +1,18 @@
+{
+  "effect_name": "Sitar",
+  "source": "sitar.c",
+  "audio_func_name": "Fx_SFX_Sitar",
+  "gid": 7,
+  "fxid": 611,
+  "fxid_version": "1.00",
+  "dsp_cost": 60.0,
+  "params": [
+    {"name": "Buzz",    "max": 100, "default": 60},
+    {"name": "Twang",   "max": 100, "default": 50},
+    {"name": "Strings", "max": 100, "default": 50},
+    {"name": "Decay",   "max": 100, "default": 60},
+    {"name": "Key",     "max": 11,  "default": 0},
+    {"name": "Raga",    "max": 2,   "default": 0},
+    {"name": "Mix",     "max": 100, "default": 80}
+  ]
+}

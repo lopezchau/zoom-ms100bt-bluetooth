@@ -41,7 +41,9 @@ def load(effect_dir: Path) -> dict:
 
 
 def knob_values(m: dict, overrides: list[str]) -> list[float]:
-    vals = {p["name"].lower(): float(p["default"]) * 100.0 / p["max"] for p in m["params"]}
+    # Raw knob values, as shown on the pedal (Key=7, Mix=80). The pedal hands the effect value / 100
+    # whatever the knob's max is (community finding), and host.c does the same.
+    vals = {p["name"].lower(): float(p["default"]) for p in m["params"]}
     for o in overrides:
         k, v = o.split("=", 1)
         assert k.lower() in vals, f"unknown knob {k}; knobs: {', '.join(p['name'] for p in m['params'])}"

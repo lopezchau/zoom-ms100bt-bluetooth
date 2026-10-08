@@ -8,7 +8,9 @@ effects/
 ├── common/zdl_fx.h        portable entry macros, arena access, safe math helpers
 ├── tools/fx.py            preview (Mac, WAV) and build (pedal, .ZDL)
 ├── tools/host.c           WAV harness: runs the effect in 8-sample blocks like the DSP
-└── revecho/               RevEcho — reverse echo (Time, Feedback, Tone, Mix)
+├── revecho/               RevEcho — reverse echo (Time, Feedback, Tone, Mix)
+└── sitar/                 Sitar — jawari buzz, twang and 11 sympathetic strings tuned to a raga
+                           (Buzz, Twang, Strings, Decay, Key 0–11, Raga 0–2, Mix)
 ```
 
 ## Requirements
