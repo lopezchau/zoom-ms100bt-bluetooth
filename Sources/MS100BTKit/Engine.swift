@@ -159,10 +159,16 @@ public final class Engine {
         let backupURL = URL(fileURLWithPath: plan.backupDir)
         try FileManager.default.createDirectory(at: backupURL, withIntermediateDirectories: true)
         try Data(oldIndex).write(to: backupURL.appendingPathComponent(Pedal.indexFile))
-        for n in Set(plan.deletes + plan.writes.map(\.name)).intersection(names).sorted() {
+        // Every file to delete is copied first, even if the listing missed it; if it cannot be read it is not deleted.
+        for n in Set(plan.deletes).union(Set(plan.writes.map(\.name)).intersection(names)).sorted() {
             emit(.log("Saving a copy of \(n)"))
-            let d = try pedal.readFile(n, expectedSize: files.first { $0.name == n }?.size)
-            try Data(d).write(to: backupURL.appendingPathComponent(n))
+            do {
+                let d = try pedal.readFile(n, expectedSize: files.first { $0.name == n }?.size)
+                try Data(d).write(to: backupURL.appendingPathComponent(n))
+            } catch {
+                if plan.deletes.contains(n) { throw error }   // never delete without a copy
+                emit(.log("\(n) is not on the pedal; nothing to save"))
+            }
         }
 
         // 3. Deletes, then writes, then the index (so the menu never lists a missing file).

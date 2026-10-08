@@ -115,10 +115,19 @@ public final class Pedal {
     public func listFiles(progress: (Int) -> Void = { _ in }) throws -> [FileEntry] {
         var files: [FileEntry] = []
         var op: UInt8 = 0x25
-        for _ in 0..<(Pedal.maxFiles + 20) {
+        var retries = 0
+        while files.count < Pedal.maxFiles + 20 {
             let r = try transact([0x60, op, 0x00, 0x00, 0x2A, 0x00], timeout: 3) { Pedal.isFS($0, sub: 0x04) || Pedal.isStatus($0) }
+            guard let m = r.first(where: { Pedal.isFS($0, sub: 0x04) && $0.count > 35 }) else {
+                // Only an explicit "end of list" status ends the listing; a missing reply is retried,
+                // because a truncated list would defeat the file-limit check and the pre-delete backup.
+                if r.contains(where: { Pedal.statusValue($0) == Pedal.notFound }) { break }
+                retries += 1
+                if retries > 3 { throw PedalError.noReply("file listing after \(files.count) files") }
+                continue
+            }
             op = 0x26
-            guard let m = r.first(where: { Pedal.isFS($0, sub: 0x04) && $0.count > 35 }) else { break }
+            retries = 0
             let name = String(bytes: m[15..<28].prefix { $0 != 0 }, encoding: .ascii) ?? ""
             if name.isEmpty || files.contains(where: { $0.name == name }) { break }
             files.append(FileEntry(name: name, size: Int(Codec.u35(m, 30) ?? 0)))
