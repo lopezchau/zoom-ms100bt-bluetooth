@@ -55,3 +55,26 @@ so `dis6x` decodes the 16-bit compact instructions. Nothing was sent to the peda
 The ctx[3] arena size is not hard-coded in a way that is easy to read statically, so it is measured on the hardware instead.
 `effects/memprobe` is a tiny effect that beeps its own arena size: long beeps = hundreds of KB, short beeps = tens.
 Result: *pending a test on the pedal*.
+
+## Where the 200-file limit comes from
+
+The function at `0xC0136A50` (its callers report errors under the name `ffs_format`, string at `0xC01511C8`) checks whether
+the file-system area of the flash (around `0x400000`) is blank. If it is, it writes a header at `0xC00BC128`:
+
+| Half-word | Value | Likely meaning |
+|---|---|---|
+| 0 | `0xAA55` | signature |
+| 1 | `0x0100` | version / format |
+| 2 | `4` | ? |
+| 3 | **`200`** | **maximum number of directory entries** |
+| 4 | `0x0400` | 1024 (sector / cluster size?) |
+
+So the limit is a **format-time parameter of the pedal's flash file system**, written into its header when the area is
+formatted (at the factory, or when the FS region is blank). It is not a menu limit, and it cannot be changed through the
+file commands the app uses.
+
+Raising it would mean reformatting the 4 MB file-system region with a larger value and re-uploading every file. That goes
+through the ROM erase/write path of firmware-update mode, which this project deliberately does not implement.
+It is also unknown whether the directory area has room for more entries, and whether the firmware's in-RAM effect tables
+accept more than ~200 effects. The effect index (`FLST_SEQ.ZDT`, 4108 bytes) would hold about 250. Not attempted: the
+risk of leaving the pedal without a usable file system is high.
