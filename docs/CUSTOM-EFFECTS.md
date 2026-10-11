@@ -41,7 +41,8 @@ files over 32 KB. For effects with more than 2 knobs it uses handlers cloned fro
 
 - No division or modulo. Use `zdl_recip()` and power-of-two masks.
 - No libm, no `double`, no `switch`, no static/const arrays used by the audio code.
-- No malloc; big state lives in the per-instance arena (`ZDL_ARENA`). Check its size and clear it lazily.
+- No malloc; big state lives in the per-instance arena (`ZDL_ARENA`): **680–689 KB on an MS-100BT** (measured with `effects/memprobe`).
+  Always check its size and clear it lazily.
 - Cast floats to unsigned through `int32_t`.
 - Every helper must be inlined (`ZDL_ALWAYS_INLINE`).
 - At most 9 knobs, labels of 8 characters at most, a file name of 8 characters at most.

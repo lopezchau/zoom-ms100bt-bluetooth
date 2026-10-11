@@ -54,7 +54,16 @@ so `dis6x` decodes the 16-bit compact instructions. Nothing was sent to the peda
 
 The ctx[3] arena size is not hard-coded in a way that is easy to read statically, so it is measured on the hardware instead.
 `effects/memprobe` is a tiny effect that beeps its own arena size: long beeps = hundreds of KB, short beeps = tens.
-Result: *pending a test on the pedal*.
+**Result (2026-10-11, firmware 1.30): 6 long + 8 short beeps = 680–689 KB per effect instance**, close to the
+~705 KB reported for the MS-70CDR. At 44.1 kHz that is about:
+
+| Format | Seconds of audio |
+|---|---|
+| mono 32-bit float | ≈ 3.9 s |
+| mono 16-bit | ≈ 7.8 s |
+| stereo 16-bit | ≈ 3.9 s |
+
+(One MemProbe per patch was measured; whether two instances each get their own arena is still open.)
 
 ## Where the 200-file limit comes from
 
