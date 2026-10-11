@@ -342,3 +342,10 @@ Installed with `ms100bt apply` (each file read back and compared; index CRC32 4a
 
 Shatter comes from the themanro toolchain, whose README lists the MS-100BT as "not supported": it loads and works.
 So far three community effects from two authors work on the MS-100BT (WaveFold, DubSiren, Shatter).
+
+### File-listing name field is 12 bytes (fixed 2026-10-11)
+
+In a `60 04 25/26` (find first/next) reply the file name occupies **bytes 15–26 (12 bytes)**. It is NUL-terminated only
+when shorter than 12 characters; for a full 8.3 name (`MemProbe.ZDL`) byte 27 belongs to the next field. Reading 13 bytes
+produced names like `MemProbe.ZDL(`. That made `apply` miss 12-character delete targets (wrong file count, no pre-delete
+copy). Fixed in the engine; the safety rule "never delete without a copy" now aborts such a plan instead.

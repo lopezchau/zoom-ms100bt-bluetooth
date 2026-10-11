@@ -128,6 +128,11 @@ public final class Engine {
         }
         let newFiles = Set(plan.writes.map(\.name)).subtracting(names)
         let finalCount = names.count - Set(plan.deletes).intersection(names).count + newFiles.count
+        for n in plan.deletes where !names.contains(n) {
+            let similar = names.filter { $0.lowercased().hasPrefix(String(n.lowercased().prefix(4))) }
+            emit(.log("Delete target \(n) [\(Array(n.utf8))] not found; similar on pedal: \(similar.map { "\($0) \(Array($0.utf8))" })"))
+        }
+        emit(.log("Pedal files: \(files.count) listed, \(names.count) unique; deleting \(Set(plan.deletes).intersection(names).count) existing, adding \(newFiles.count) new"))
         guard finalCount <= Pedal.maxFiles else { throw Pedal.PedalError.fileLimit(finalCount) }
         let sources = try plan.writes.map { w -> (String, [UInt8]) in
             (w.name, [UInt8](try Data(contentsOf: URL(fileURLWithPath: w.source))))

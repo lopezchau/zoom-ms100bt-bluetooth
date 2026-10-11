@@ -128,7 +128,7 @@ public final class Pedal {
             }
             op = 0x26
             retries = 0
-            let name = String(bytes: m[15..<28].prefix { $0 != 0 }, encoding: .ascii) ?? ""
+            let name = String(bytes: m[15..<27].prefix { $0 != 0 }, encoding: .ascii) ?? ""   // 12-byte field (8.3 name), not NUL-terminated when full
             if name.isEmpty || files.contains(where: { $0.name == name }) { break }
             files.append(FileEntry(name: name, size: Int(Codec.u35(m, 30) ?? 0)))
             progress(files.count)
