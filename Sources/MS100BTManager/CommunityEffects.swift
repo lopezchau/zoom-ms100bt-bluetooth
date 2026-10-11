@@ -15,9 +15,9 @@ struct CommunitySource {
 
     static let all: [CommunitySource] = [
         CommunitySource(owner: "matujuice", repo: "zoom-ms-zdl-effects-pack", folder: "dist/",
-                        note: "MIT (see repo SCOPE). Tested on an MS-60B running MS-50G firmware — the closest known setup to the MS-100BT."),
+                        note: "MIT (see repo SCOPE). Tested on an MS-60B running MS-50G firmware; WaveFold and DubSiren are confirmed on an MS-100BT."),
         CommunitySource(owner: "themanro", repo: "ZoomMultistompZDL", folder: "dist/",
-                        note: "MIT for src/custom, tools, docs, graphics (see repo LICENSE). Tested on MS-70CDR 2.10; README lists MS-100BT as unsupported (no reason given)."),
+                        note: "MIT for src/custom, tools, docs, graphics (see repo LICENSE). Tested on MS-70CDR 2.10; Shatter, Galactic, Microloom and Spool are confirmed on an MS-100BT."),
         CommunitySource(owner: "repeat98", repo: "ZoomMultistompZDL", folder: "dist/",
                         note: "README: repository code MIT unless a file says otherwise. Tested on MS-70CDR 2.10."),
         CommunitySource(owner: "marcfuentes", repo: "dustbox-zdl", folder: "",

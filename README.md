@@ -39,7 +39,7 @@ the pedal's Bluetooth protocol and provides:
 | Installing and removing effects from the app (drag and drop → Apply) | ✅ |
 | Factory reset (All Initialize) keeps added effects | ✅ |
 | Bass categories (Bass Drive / Bass Preamp / Bass Amp) | ❌ installed but **not shown** by the MS-100BT menu; listing one under Drive **froze the pedal** |
-| Community custom effects (TI C6000 DSP): **WaveFold** and **DubSiren** (matujuice), **Shatter** (themanro) | ✅ working |
+| Community custom effects (TI C6000 DSP): **WaveFold**, **DubSiren** (matujuice); **Shatter**, **Galactic**, **Microloom**, **Spool** (themanro) | ✅ working |
 
 Things you should know:
 
@@ -98,7 +98,7 @@ Every effect shows its display name, knobs, category, origin and a risk label:
 | Label | Meaning |
 |---|---|
 | Low risk | Standard header, no missing dependencies, a category the MS-100BT is known to show |
-| Community | Custom effect; WaveFold, DubSiren and Shatter are confirmed on an MS-100BT, others are not tested yet |
+| Community | Custom effect; WaveFold, DubSiren, Shatter, Galactic, Microloom and Spool are confirmed on an MS-100BT, others are not tested yet |
 | Not shown by the MS-100BT menu | Bass categories: the effect is stored but the menu (DYN/FLTR, OD/DIST, AMP, MOD/SFX, DLY/REV) never lists it |
 | Untested header | The `BCAB` header used by bass amps; never tried on an MS-100BT |
 | Larger than 32 KB | Custom effect above the largest custom size known to load (stock effects up to 42 KB work) |
@@ -147,7 +147,7 @@ The Python tools `tools/zdlinfo.py` and `tools/flst.py` do the same, without bui
 The MS-100BT runs effects on a TI TMS320C674x DSP, the same family as the MS-50G/60B/70CDR. Community projects already
 build custom effects for it:
 
-- [themanro/ZoomMultistompZDL](https://github.com/themanro/ZoomMultistompZDL): toolchain and 20+ effects (MS-70CDR; Shatter confirmed on MS-100BT).
+- [themanro/ZoomMultistompZDL](https://github.com/themanro/ZoomMultistompZDL): toolchain and 20+ effects (MS-70CDR; Shatter, Galactic, Microloom and Spool confirmed on MS-100BT).
   Read its [SAFE-DSP-RULES](https://github.com/themanro/ZoomMultistompZDL/blob/main/docs/SAFE-DSP-RULES.md) and LOADER-SAFETY docs.
 - [matujuice/zoom-ms-zdl-effects-pack](https://github.com/matujuice/zoom-ms-zdl-effects-pack): 12 effects tested on an
   MS-60B running MS-50G firmware, the closest known setup to the MS-100BT.
@@ -160,7 +160,7 @@ Building needs TI's C6000 compiler (CGT 8.5.0.LTS, shipped with Code Composer St
 This is why the app downloads them from their authors instead of bundling them.
 
 To try your own build, put the `.ZDL` (8.3 file name) in the app's *custom-effects* folder (Library menu), then drag it onto the pedal.
-Confirmed working on an MS-100BT: **WaveFold** and **DubSiren** (matujuice) and **Shatter** (themanro — whose README lists the MS-100BT as unsupported; it does work). **Please report which other custom effects work** (open an issue).
+Confirmed working on an MS-100BT: **WaveFold** and **DubSiren** (matujuice); **Shatter**, **Galactic** (Airwindows reverb), **Microloom** (shimmer) and **Spool** (tape echo) from themanro, whose README lists the MS-100BT as unsupported. They do work; use one of Galactic / Microloom / Spool per patch, they are DSP-heavy. **Please report which other custom effects work** (open an issue).
 
 ## Documentation
 

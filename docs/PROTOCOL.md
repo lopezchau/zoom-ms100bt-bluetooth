@@ -349,3 +349,10 @@ In a `60 04 25/26` (find first/next) reply the file name occupies **bytes 15–2
 when shorter than 12 characters; for a full 8.3 name (`MemProbe.ZDL`) byte 27 belongs to the next field. Reading 13 bytes
 produced names like `MemProbe.ZDL(`. That made `apply` miss 12-character delete targets (wrong file count, no pre-delete
 copy). Fixed in the engine; the safety rule "never delete without a copy" now aborts such a plan instead.
+
+### themanro flagship effects on an MS-100BT (2026-10-11)
+
+Installed with `ms100bt apply` (each file read back; index CRC32 0da2ea76) and confirmed working by the owner:
+**Galactic** (13,026 B, ID 408, Airwindows Galactic port), **Microloom** (`Microlm.ZDL`, 8,138 B, ID 450, shimmer) and
+**Spool** (20,746 B, ID 409, 9-knob tape echo), all category 08. Galactic's delay lines (~400 KB) fit in the
+680–689 KB arena measured with MemProbe. With Shatter, four themanro effects now run on the MS-100BT.
