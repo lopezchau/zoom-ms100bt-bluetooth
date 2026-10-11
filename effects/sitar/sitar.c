@@ -11,7 +11,10 @@
  *  3. Taraf. 11 sympathetic strings (filtered comb resonators) tuned to a raga in the chosen key,
  *     excited by the jawari voice and passed through their own jawari; odd strings left, even right.
  *
- * Knobs: Buzz, Twang, Strings, Decay, Key (0–11 = C–B), Raga (0 Bilawal, 1 Kafi, 2 Bhairav), Mix.
+ *  4. Detune. The voice wavers a few cents at 1–6 Hz, irregularly, as measured on a real sitar
+ *     recording (≈ 6 cents at 2.3 Hz); left and right waver differently, so they also beat.
+ *
+ * Knobs: Buzz, Twang, Strings, Decay, Key (0–11 = C–B), Raga (0 Bilawal, 1 Kafi, 2 Bhairav), Detune, Mix.
  */
 #include "../common/zdl_fx.h"
 
@@ -19,12 +22,18 @@
 #define SITAR_AUDIO_FUNC Fx_SFX_Sitar
 #endif
 
-#define ST_MAGIC     0x53495432u   /* 'SIT2' */
+#define ST_MAGIC     0x53495433u   /* 'SIT3' */
 #define ST_STRINGS   11
 #define ST_LINE      512u          /* samples per string line (≥ 44100 / 261.6 Hz with margin) */
 #define ST_LINE_MASK (ST_LINE - 1u)
 #define JW_LEN       128u          /* jawari delay lines (≤ 2.9 ms) */
 #define JW_MASK      (JW_LEN - 1u)
+#define DT_LEN       1024u         /* detune delay line (23 ms) */
+#define DT_MASK      (DT_LEN - 1u)
+
+#ifndef ST_HALO_GAIN
+#define ST_HALO_GAIN 0.33f           /* halo ≈ −14 dB under the notes at Strings 50, like a real recording (Kiravani: −11…−17 dB) */
+#endif
 
 #define SLOT_BUZZ    5
 #define SLOT_TWANG   6
@@ -32,7 +41,8 @@
 #define SLOT_DECAY   8
 #define SLOT_KEY     9
 #define SLOT_RAGA    10
-#define SLOT_MIX     11
+#define SLOT_DETUNE  11
+#define SLOT_MIX     12
 
 typedef struct {
     uint32_t magic;
@@ -42,6 +52,7 @@ typedef struct {
     uint32_t jp;                 /* write position of the jawari lines */
     float    delay[ST_STRINGS];
     float    damp[ST_STRINGS];
+    float    wgt[ST_STRINGS];    /* drone strings (Sa, Pa) ring louder, as in real recordings */
     float    lowLp;              /* removes the guitar's low end (sitars are thin) */
     float    env;                /* note envelope (normalizes the displacement) */
     float    twEnv;              /* twang envelope: instant attack, ~200 ms glide */
@@ -49,6 +60,12 @@ typedef struct {
     float    svLow, svBand;      /* twang filter */
     float    bodyLow, bodyBand;  /* fixed nasal resonance (~2.6 kHz) */
     float    exA, exB;           /* exciter high-pass states */
+    float    lowLp2;             /* second high-pass stage */
+    float    topA, topB;         /* gentle low-pass ~3 kHz (a sitar has little energy above 2 kHz) */
+    float    excLp;              /* removes DC before it reaches the resonators */
+    float    dcxL, dcyL, dcxR, dcyR;   /* output DC blockers */
+    float    lfo1, lfo2, lfo3;   /* detune LFO phases (-1..1) */
+    uint32_t dp;                 /* detune line write position */
     float    jawLead[JW_LEN];
     float    jawSym[JW_LEN];
 } SitarState;
@@ -100,8 +117,9 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
 
     SitarState *st = (SitarState *)arenaBase;
     uintptr_t linesBase = (arenaBase + sizeof(SitarState) + 7u) & ~(uintptr_t)7u;
-    if (linesBase + (uintptr_t)(ST_STRINGS * ST_LINE) * 4u > arenaEnd) return;
+    if (linesBase + (uintptr_t)(ST_STRINGS * ST_LINE + DT_LEN) * 4u > arenaEnd) return;
     float *lines = (float *)linesBase;
+    float *dtLine = lines + ST_STRINGS * ST_LINE;
 
     int s;
     uint32_t n;
@@ -112,7 +130,7 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         st->raga = -1;
         st->wp = 0u;
         st->jp = 0u;
-        for (s = 0; s < ST_STRINGS; s++) { st->damp[s] = 0.0f; st->delay[s] = 200.0f; }
+        for (s = 0; s < ST_STRINGS; s++) { st->damp[s] = 0.0f; st->delay[s] = 200.0f; st->wgt[s] = 0.35f; }
         for (n = 0; n < JW_LEN; n++) { st->jawLead[n] = 0.0f; st->jawSym[n] = 0.0f; }
         st->lowLp = 0.0f;
         st->env = 0.0f;
@@ -121,10 +139,13 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         st->svLow = 0.0f; st->svBand = 0.0f;
         st->bodyLow = 0.0f; st->bodyBand = 0.0f;
         st->exA = 0.0f; st->exB = 0.0f;
+        st->lowLp2 = 0.0f; st->excLp = 0.0f; st->topA = 0.0f; st->topB = 0.0f;
+        st->dcxL = 0.0f; st->dcyL = 0.0f; st->dcxR = 0.0f; st->dcyR = 0.0f;
+        st->lfo1 = 0.0f; st->lfo2 = 0.5f; st->lfo3 = -0.3f; st->dp = 0u;
     }
-    if (st->cleared < (uint32_t)(ST_STRINGS * ST_LINE)) {
+    if (st->cleared < (uint32_t)(ST_STRINGS * ST_LINE + DT_LEN)) {
         uint32_t e = st->cleared + 2048u;
-        if (e > (uint32_t)(ST_STRINGS * ST_LINE)) e = (uint32_t)(ST_STRINGS * ST_LINE);
+        if (e > (uint32_t)(ST_STRINGS * ST_LINE + DT_LEN)) e = (uint32_t)(ST_STRINGS * ST_LINE + DT_LEN);
         for (n = st->cleared; n < e; n++) lines[n] = 0.0f;
         st->cleared = e;
         return;
@@ -136,6 +157,7 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
     float decay = zdl_knob(params[SLOT_DECAY], 0.6f);
     int key = (int)(zdl_knob(params[SLOT_KEY], 0.0f) * 100.0f + 0.5f);
     int raga = (int)(zdl_knob(params[SLOT_RAGA], 0.0f) * 100.0f + 0.5f);
+    float detune = zdl_knob(params[SLOT_DETUNE], 0.4f);
     float mix = zdl_knob(params[SLOT_MIX], 0.9f);
     if (key > 11) key = 11;
     if (raga > 2) raga = 2;
@@ -149,6 +171,8 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
             int m = st_semitones(s, raga);
             for (k = 0; k < m; k++) f *= 1.0594631f;
             st->delay[s] = 44100.0f * zdl_recip(f);
+            /* Sa (0, 12) and Pa (7, 19) dominate the background of real recordings (Kiravani analysis). */
+            st->wgt[s] = (m == 0 || m == 12) ? 1.0f : ((m == 7 || m == 19) ? 0.8f : 0.3f);
         }
         st->key = key;
         st->raga = raga;
@@ -163,6 +187,15 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
     float lowLp = st->lowLp, env = st->env, twEnv = st->twEnv, peak = st->peak;
     float svLow = st->svLow, svBand = st->svBand, bodyLow = st->bodyLow, bodyBand = st->bodyBand;
     float exA = st->exA, exB = st->exB;
+    float lowLp2 = st->lowLp2, excLp = st->excLp, topA = st->topA, topB = st->topB;
+    float dcxL = st->dcxL, dcyL = st->dcyL, dcxR = st->dcxR, dcyR = st->dcyR;
+    float lfo1 = st->lfo1, lfo2 = st->lfo2, lfo3 = st->lfo3;
+    uint32_t dp = st->dp;
+    /* Measured on a real sitar recording: inside each note the pitch wavers ~6 cents (std, range
+     * 0.6–24) at 1–6 Hz (median 2.3 Hz), irregularly. A delay swinging ±A samples at rate r shifts
+     * pitch by up to A·2πr/fs, so ~16 samples ≈ 6 cents at Detune 40 and ~34 ≈ 13 cents at 100. */
+    float dtDepth = 8.0f + 60.0f * detune;
+    float dtBlend = zdl_clamp(2.5f * detune, 0.0f, 1.0f);   /* fully wavering from Detune ≈ 40 on */
 
     int i;
     for (i = 0; i < 8; i++) {
@@ -170,9 +203,11 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         float inR = fx[i + 8];
         float in = 0.5f * (inL + inR);
 
-        /* Thin the guitar: high-pass ~180 Hz. */
-        lowLp += 0.025f * (in - lowLp);
-        float str = in - lowLp;
+        /* Thin the guitar: two-stage high-pass ~220 Hz (a sitar has almost nothing below 200 Hz). */
+        lowLp += 0.031f * (in - lowLp);
+        float hp1 = in - lowLp;
+        lowLp2 += 0.031f * (hp1 - lowLp2);
+        float str = hp1 - lowLp2;
         float a = str < 0.0f ? -str : str;
         env += (a > env ? 0.08f : 0.0006f) * (a - env);
 
@@ -200,29 +235,53 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         exB += 0.23f * (exHp - exB);
         float bloom = 1.0f - 0.7f * ratio;
         lead += buzz * 2.2f * bloom * (exHp - exB) * env;
-        float fc = 700.0f + 3300.0f * ratio * ratio;
+        float fc = 600.0f + 1800.0f * ratio * ratio;     /* 2.4 kHz → 600 Hz glide */
         float f = 6.2831853f * fc * (1.0f / 44100.0f);
         svLow += f * svBand;
         float svHigh = lead - svLow - 0.18f * svBand;
         svBand += f * svHigh;
 
-        /* Fixed nasal resonance of the gourd/bridge, ~2.6 kHz. */
-        bodyLow += 0.37f * bodyBand;
-        float bodyHigh = lead - bodyLow - 0.5f * bodyBand;
-        bodyBand += 0.37f * bodyHigh;
+        /* Nasal resonance of the gourd/bridge, ~1.3 kHz (the reference recording peaks at 0.85–1.5 kHz). */
+        bodyLow += 0.185f * bodyBand;
+        float bodyHigh = lead - bodyLow - 0.35f * bodyBand;
+        bodyBand += 0.185f * bodyHigh;
 
-        float voice = (lead + twang * 0.9f * svBand + 0.35f * bodyBand) * trim;
+        float raw = (lead + twang * 0.9f * svBand + 0.6f * bodyBand) * trim;
+        topA += 0.35f * (raw - topA);                  /* two one-pole stages ≈ 3 kHz, 12 dB/oct */
+        topB += 0.35f * (topA - topB);
+        float voice = topB;
+
+        /* --- detune: two slowly drifting copies (modulated delays), left and right --- */
+        dtLine[dp] = voice;
+        lfo1 += 1.7f * 2.0f / 44100.0f; if (lfo1 >= 1.0f) lfo1 -= 2.0f;
+        lfo2 += 2.9f * 2.0f / 44100.0f; if (lfo2 >= 1.0f) lfo2 -= 2.0f;
+        lfo3 += 0.6f * 2.0f / 44100.0f; if (lfo3 >= 1.0f) lfo3 -= 2.0f;
+        float s1 = 4.0f * lfo1 * (1.0f - (lfo1 < 0.0f ? -lfo1 : lfo1));   /* parabolic sines */
+        float s2 = 4.0f * lfo2 * (1.0f - (lfo2 < 0.0f ? -lfo2 : lfo2));
+        float s3 = 4.0f * lfo3 * (1.0f - (lfo3 < 0.0f ? -lfo3 : lfo3));
+        /* Irregular wander: two rates plus a slow common drift, never repeating exactly. */
+        float d1 = 80.0f + dtDepth * (0.65f * s1 + 0.35f * s3);
+        float d2 = 80.0f + dtDepth * (0.65f * s2 - 0.35f * s3);
+        float v1 = st_tap(dtLine, dp, d1, DT_MASK);
+        float v2 = st_tap(dtLine, dp, d2, DT_MASK);
+        dp = (dp + 1u) & DT_MASK;
+        /* The voice itself drifts (not just copies under it); the two drifts beat against each other. */
+        float drift = 0.5f * (v1 + v2);
+        float detL = voice + dtBlend * (0.75f * v1 + 0.25f * drift - voice);
+        float detR = voice + dtBlend * (0.75f * v2 + 0.25f * drift - voice);
 
         /* --- taraf: sympathetic strings, with their own jawari --- */
-        float exc = 0.25f * voice;
+        excLp += 0.003f * (voice - excLp);              /* DC blocker (~20 Hz): resonators amplify DC ×50 */
+        float exc = 0.08f * (voice - excLp);
         float symL = 0.0f, symR = 0.0f;
         for (s = 0; s < ST_STRINGS; s++) {
             float *line = lines + s * ST_LINE;
             float past = st_tap(line, wp, st->delay[s], ST_LINE_MASK);
             float dmp = st->damp[s] + loopLp * (past - st->damp[s]);
             st->damp[s] = dmp;
-            line[wp] = exc + feedback * dmp;
-            if (s & 1) symR += dmp; else symL += dmp;
+            float w = st->wgt[s];
+            line[wp] = exc * w + (feedback + (1.0f - feedback) * 0.4f * w) * dmp;   /* drones ring longer */
+            if (s & 1) symR += w * dmp; else symL += w * dmp;
         }
         wp = (wp + 1u) & ST_LINE_MASK;
         float sym = symL + symR;
@@ -232,10 +291,13 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
         float shimmer = 0.5f * (sym + symJaw) + 0.6f * (sym - symJaw);
         jp = (jp + 1u) & JW_MASK;
 
-        float spreadL = 0.6f * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symL));
-        float spreadR = 0.6f * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symR));
-        float wetL = voice + strings * spreadL;
-        float wetR = voice + strings * spreadR;
+        float spreadL = ST_HALO_GAIN * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symL));
+        float spreadR = ST_HALO_GAIN * zdl_softclip(2.0f * (0.7f * shimmer + 0.6f * symR));
+        float wetL = detL + strings * spreadL;
+        float wetR = detR + strings * spreadR;
+        /* Output DC blockers (y = x − x₁ + 0.995·y₁). */
+        float yL = wetL - dcxL + 0.995f * dcyL; dcxL = wetL; dcyL = yL; wetL = yL;
+        float yR = wetR - dcxR + 0.995f * dcyR; dcxR = wetR; dcyR = yR; wetR = yR;
         fx[i] = inL + mix * (wetL - inL);
         fx[i + 8] = inR + mix * (wetR - inR);
     }
@@ -244,4 +306,7 @@ void SITAR_AUDIO_FUNC(zdl_word *ctx)
     st->lowLp = lowLp; st->env = env; st->twEnv = twEnv; st->peak = peak;
     st->svLow = svLow; st->svBand = svBand; st->bodyLow = bodyLow; st->bodyBand = bodyBand;
     st->exA = exA; st->exB = exB;
+    st->lowLp2 = lowLp2; st->excLp = excLp; st->topA = topA; st->topB = topB;
+    st->dcxL = dcxL; st->dcyL = dcyL; st->dcxR = dcxR; st->dcyR = dcyR;
+    st->lfo1 = lfo1; st->lfo2 = lfo2; st->lfo3 = lfo3; st->dp = dp;
 }

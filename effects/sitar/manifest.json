@@ -38,6 +38,11 @@
       "default": 0
     },
     {
+      "name": "Detune",
+      "max": 100,
+      "default": 50
+    },
+    {
       "name": "Mix",
       "max": 100,
       "default": 90
