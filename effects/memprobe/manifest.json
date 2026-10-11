@@ -1,0 +1,13 @@
+{
+  "effect_name": "MemProbe",
+  "source": "memprobe.c",
+  "audio_func_name": "Fx_DLY_MemProbe",
+  "gid": 8,
+  "fxid": 699,
+  "fxid_version": "1.00",
+  "dsp_cost": 5.0,
+  "params": [
+    {"name": "Unused", "max": 100, "default": 0},
+    {"name": "Unused2", "max": 100, "default": 0}
+  ]
+}

@@ -9,6 +9,7 @@ effects/
 ├── tools/fx.py            preview (Mac, WAV) and build (pedal, .ZDL)
 ├── tools/host.c           WAV harness: runs the effect in 8-sample blocks like the DSP
 ├── revecho/               RevEcho — reverse echo (Time, Feedback, Tone, Mix)
+├── memprobe/              MemProbe — beeps the size of the memory the pedal gives an effect (diagnostic)
 └── sitar/                 Sitar — jawari buzz, twang and 11 sympathetic strings tuned to a raga
                            (Buzz, Twang, Strings, Decay, Key 0–11, Raga 0–2, Mix)
 ```
